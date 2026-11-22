@@ -3636,14 +3636,13 @@ static void Snapshot(ViewState *s, u8 mode, u8 pressed)
                 if (sMapZoom)
                     s->landmarks = MapLandmarks(sPickMapsec, s->pickType, sPickPos);
             }
+            /* The ordinary map, like the Fly map, shows visit progress. */
+            for (int i = 0; i <= MAPSEC_EVER_GRANDE_CITY - MAPSEC_LITTLEROOT_TOWN; ++i)
+                if (FlagGet(FLAG_VISITED_LITTLEROOT_TOWN + i))
+                    s->flyVisited |= 1 << i;
+            s->flyFrontier = FlagGet(FLAG_LANDMARK_BATTLE_FRONTIER) != 0;
             if (s->mapFly)
-            {
-                for (int i = 0; i <= MAPSEC_EVER_GRANDE_CITY - MAPSEC_LITTLEROOT_TOWN; ++i)
-                    if (FlagGet(FLAG_VISITED_LITTLEROOT_TOWN + i))
-                        s->flyVisited |= 1 << i;
-                s->flyFrontier = FlagGet(FLAG_LANDMARK_BATTLE_FRONTIER) != 0;
                 s->flyCanFly = s->pickType == MAPSECTYPE_CITY_CANFLY || s->pickType == MAPSECTYPE_BATTLE_FRONTIER;
-            }
             else
                 SnapshotMapExtras(s);
         }
@@ -7172,7 +7171,7 @@ static bool8 RectsMeet(int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int
 static bool8 MoveMapCursor(const ViewState *from, const ViewState *to)
 {
     const u8 *icon = sRes.playerIcon[to->gender];
-    int r[2][4];
+    int r[2][4], restoredClip[4];
 
     if (sCache[CACHE_MAP] == NULL || icon == NULL || CtrVideo_BottomInUse() || CtrVideo_BottomWhole())
         return FALSE;
@@ -7190,6 +7189,10 @@ static bool8 MoveMapCursor(const ViewState *from, const ViewState *to)
     sDst = sCanvas;
     sOX = 0;
     sOY = 0;
+    /* The static map cache has no visit icons; repaint them under the old mark. */
+    ClipPush(restoredClip, r[0][0], r[0][1], r[0][2], r[0][3]);
+    DrawFlyIcons(to);
+    ClipPop(restoredClip);
     /* The mark, and a picked cell's cursor over it, as Render draws them. */
     DrawMapMarks(to);
     for (int k = 0; k < 2; ++k)
