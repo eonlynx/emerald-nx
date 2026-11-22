@@ -598,8 +598,10 @@ static void DrawRegionMap(const ViewState *s)
     }
     else
     {
-        /* Keep the city icons tied to visited flags on the permanent map. */
-        DrawFlyIcons(s);
+        /* Fly always shows the destinations. Ordinary MAP shows them only
+         * when the player selects progressive visit markers. */
+        if (s->mapFly || s->mapProgressive)
+            DrawFlyIcons(s);
         DrawMapMarks(s);
         AddHit(RMAP_ORIGIN_X, RMAP_ORIGIN_Y, RMAP_PIC_W, RMAP_PIC_H, HIT_MAP);
         DrawMapPanel(s);

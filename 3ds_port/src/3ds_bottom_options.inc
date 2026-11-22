@@ -74,6 +74,7 @@ static const OptRowDef sRowsField[] = {
     EXTRA_ROW("field_hms"),
 };
 static const OptRowDef sRowsHelpers[] = {
+    EXTRA_ROW("map_progressive"),
     EXTRA_ROW("map_encounters"),
     EXTRA_ROW("repel_steps"),
     EXTRA_ROW("repel_prompt"),

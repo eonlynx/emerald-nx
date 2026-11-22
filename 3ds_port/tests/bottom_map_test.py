@@ -44,6 +44,21 @@ def main():
     clock = (ROOT / 'src/3ds_clock_store.c').read_text(encoding='utf-8')
     extras = (ROOT / 'src/3ds_extras.c').read_text(encoding='utf-8')
     table = (ROOT / 'src/3ds_field_qol_extras.inc').read_text(encoding='utf-8')
+    field = (ROOT / 'src/3ds_bottom_field.inc').read_text(encoding='utf-8')
+    # Classic MAP preserves the original picture. Progressive MAP draws
+    # grey/visited town markers; Fly must keep showing its destinations.
+    draw_map = function(field, 'static void DrawRegionMap(')
+    snapshot = function(bottom, 'static void Snapshot(')
+    move_cursor = function(bottom, 'static bool8 MoveMapCursor(')
+    assert 'EXTRA_ROW("map_progressive")' in options
+    assert '"map_progressive", 2, 0, sMapModes' in extras
+    assert 's->mapProgressive = CtrExtras_Get("map_progressive") != 0;' in snapshot
+    assert 'if (s->mapFly || s->mapProgressive)\n            DrawFlyIcons(s);' in draw_map
+    assert snapshot.index('s->flyVisited |= 1 << i;') < snapshot.index('if (s->mapFly)\n                s->flyCanFly')
+    # The optimized cursor redraw restores icons only when enabled.
+    assert 'if (to->mapProgressive)' in move_cursor
+    assert 'DrawFlyIcons(to);' in move_cursor
+    assert move_cursor.index('DrawFlyIcons(to);') < move_cursor.index('DrawMapMarks(to);')
     # Entries after the sentinel corrupt count-based settings lookup.
     assert extras.index('#include "3ds_field_qol_extras.inc"') < extras.index('    {0},')
     hook_patch = ROOT.parent / 'patches/pokeemerald/0078-field-clock-notice.patch'
@@ -80,6 +95,8 @@ typedef bool bool8;
 #define H 240
 #define CTR_BOTTOM_WIN_X 40
 #define CTR_BOTTOM_WIN_Y 40
+#define CTR_BOTTOM_WIN_SCREEN_Y CTR_BOTTOM_WIN_Y
+#define CTR_BOTTOM_EXTRA 0
 #define PARTY_SIZE 6
 #define POKEMON_NAME_LENGTH 10
 #define PLAYER_NAME_LENGTH 7
@@ -123,20 +140,21 @@ struct CtrDexView { u8 state, national, data[300]; };
     source += function(plate, 'static void PlateBounds(')
     for name in ('HEAD_Y', 'HEAD_H', 'HEAD_Y_X', 'HEAD_Y_W', 'TITLE_X', 'TITLE_W', 'REPEL_X', 'REPEL_W', 'CLOCK_X',
                  'CLOCK_W', 'RUN_X', 'RUN_W', 'TITLE_WIDE_W', 'DOCK_Y', 'DOCK_TOP', 'DOCK_H', 'DOCK_GAP', 'AREA_X',
-                 'AREA_Y', 'AREA_W', 'AREA_H', 'MAP_WIN_X', 'MAP_WIN_Y', 'MAP_WIN_W', 'MAP_WIN_H', 'MAP_ORIGIN_X',
+                 'AREA_Y', 'AREA_W', 'AREA_H', 'GV_Y', 'GV_H', 'GV_BOTTOM',
+                 'MAP_WIN_X', 'MAP_WIN_Y', 'MAP_WIN_W', 'MAP_WIN_H', 'MAP_ORIGIN_X',
                  'MAP_ORIGIN_Y', 'GAME_WIN_X', 'GAME_WIN_Y', 'GAME_WIN_W', 'GAME_WIN_H'):
         source += define(shell, name)
     for name in ('MAP_PIC_W', 'MAP_PIC_H'):
         source += define((ROOT / 'src/3ds_bottom_field.inc').read_text(encoding='utf-8'), name)
     for name in ('SUM_TAB_H', 'SUM_Y', 'SUM_LEFT_W', 'SUM_PIC_BOTTOM'):
         source += define((ROOT / 'src/3ds_bottom_game.inc').read_text(encoding='utf-8'), name)
-    for name in ('OPT_PANEL_Y', 'OPT_PANEL_H'):
+    for name in ('OPT_TAB_H', 'OPT_GROUP_Y', 'OPT_GROUP_H', 'OPT_PANEL_Y', 'OPT_PANEL_H'):
         source += define(options, name)
     source += r'''
 typedef struct { s16 x, y, w, h; u8 id; } Hit;
 static Hit sHits[64];
 static u8 sHitCount;
-static int sOX;
+static int sOX, sOY;
 static ViewState sShown, sState;
 static bool sInUse;
 static bool CtrVideo_BottomInUse(void) {return sInUse;}
@@ -450,7 +468,9 @@ static void TestMark(void) {
     ViewState a=Field(SCR_MAP),b;
     a.mapsec=2;a.cursorX=9;a.cursorY=8;
     b=a;b.cursorX++;assert(MapCursorOnlyMoved(&b,&a));
-    b.repelSteps=40;assert(MapCursorOnlyMoved(&b,&a));
+    /* Discovering a city must trigger a full redraw, not just move the icon. */
+    b.flyVisited=1;assert(!MapCursorOnlyMoved(&b,&a));
+    b=a;b.cursorX++;b.repelSteps=40;assert(MapCursorOnlyMoved(&b,&a));
     b.mapsec=32;assert(MapCursorOnlyMoved(&b,&a));
     b=a;assert(!MapCursorOnlyMoved(&b,&a));
     b=a;b.cursorX++;b.clockMinute++;assert(!MapCursorOnlyMoved(&b,&a));

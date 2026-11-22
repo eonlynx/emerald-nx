@@ -24,6 +24,13 @@
 
 const char *const gCtrExtrasOffOn[2] = {CTR_TEXT("OFF", "NO", "NON", "NO", "NENHUM", "AUS", "オフ"), CTR_TEXT("ON", "SÍ", "OUI", "SÌ", "SIM", "AN", "オン")};
 
+/* The original map stays the default; progressive mode adds grey/visited
+ * town markers. Fly destinations always use the game's existing rules. */
+static const char *const sMapModes[] = {
+    CTR_TEXT("CLASSIC", "CLÁSICO", "CLASSIQUE", "CLASSICA", "CLÁSSICO", "KLASSISCH", "クラシック"),
+    CTR_TEXT("PROGRESSIVE", "PROGRESIVO", "PROGRESSIVE", "PROGRESSIVA", "PROGRESSIVO", "PROGRESSIV", "しんこう"),
+};
+
 static const char *const sDayNight[] = {CTR_TEXT("OFF", "NO", "NON", "NO", "NENHUM", "AUS", "オフ"), "AUTO"};
 static const char *const sClockSpeeds[] = {"1X", "6X", "12X", "24X", "60X", "120X"};
 /* SYNC CLOCK: the local clock and 1X again, bonus berry time kept; on disk
@@ -268,6 +275,7 @@ const CtrExtra gCtrExtras[] =
     /* The game and the music keep real time on a slow frame; the sound
      * engine mixes on the DSP's clock (3ds_platform.c, 3ds_audio.c). */
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("REAL-TIME PACING", "RITMO REAL", "RYTHME RÉEL", "RITMO REALE", "RITMO REAL", "ECHTZEIT-TAKT", "リアルタイム"), "audio_clock", 2, 1, gCtrExtrasOffOn, NULL, NULL, NULL},
+    {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("MAP DISPLAY", "MAPA", "AFFICH. CARTE", "MAPPA", "MAPA", "KARTENANSICHT", "マップひょうじ"), "map_progressive", 2, 0, sMapModes, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("EXP FOR CATCHING", "EXP AL CAPTURAR", "EXP. CAPTURE", "ESP. CATTURA", "EXP. POR CAPTURA", "EP BEIM FANGEN", "つかまえて けいけんち"), "exp_catch", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("PARTY EXP SHARE", "EXP TODO EQUIPO", "MULTI EXP.", "CONDIV. ESP.", "EXP. PARA EQUIPE", "EP FÜR TEAM", "みんなに けいけんち"), "exp_share", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("TRADE EVO LV. 40", "EVOL. INTERC. N40", "ÉVOL. SANS ÉCHANGE", "SCAMBIO LIV. 40", "EVO. TROCA NV. 40", "TAUSCH-ENTW. LV.40", "つうしん しんか Lv40"), "trade_evo", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},

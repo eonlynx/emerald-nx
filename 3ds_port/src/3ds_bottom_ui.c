@@ -2297,7 +2297,7 @@ typedef struct
     u8 mapsec, cursorX, cursorY, pickMapsec, pickX, pickY;
     u8 mapZoom, pickType, pickPos, landmarks;
     s16 mapViewX, mapViewY;
-    u8 mapFly, flyFrontier, flyCanFly;
+    u8 mapFly, flyFrontier, flyCanFly, mapProgressive;
     u16 flyVisited;
     u8 clockShown, clockValid, clockRate, clockPhase;
     u16 clockMinute;
@@ -3624,6 +3624,8 @@ static void Snapshot(ViewState *s, u8 mode, u8 pressed)
             s->pickX = sPickX;
             s->pickY = sPickY;
             s->mapZoom = sMapZoom;
+            /* UI setting, never part of the game's GBA save. */
+            s->mapProgressive = CtrExtras_Get("map_progressive") != 0;
             if (sMapZoom)
             {
                 s->mapViewX = sMapViewX;
@@ -7189,10 +7191,14 @@ static bool8 MoveMapCursor(const ViewState *from, const ViewState *to)
     sDst = sCanvas;
     sOX = 0;
     sOY = 0;
-    /* The static map cache has no visit icons; repaint them under the old mark. */
-    ClipPush(restoredClip, r[0][0], r[0][1], r[0][2], r[0][3]);
-    DrawFlyIcons(to);
-    ClipPop(restoredClip);
+    /* The static map cache has no visit icons. Restore them only in
+     * progressive mode before painting the moving player marker. */
+    if (to->mapProgressive)
+    {
+        ClipPush(restoredClip, r[0][0], r[0][1], r[0][2], r[0][3]);
+        DrawFlyIcons(to);
+        ClipPop(restoredClip);
+    }
     /* The mark, and a picked cell's cursor over it, as Render draws them. */
     DrawMapMarks(to);
     for (int k = 0; k < 2; ++k)
