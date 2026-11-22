@@ -191,10 +191,10 @@ static void SpeedStep(int direction)
     CtrSettings_StepSpeed(direction, true);
 }
 
-static const u8 *SpeedText(void)
+/* Common glyph formatter for world and battle speed (half-step units). */
+static const u8 *SpeedHalvesText(int halves)
 {
     static u8 text[6];
-    int halves = CtrSettings_SpeedHalves();
     u8 *end = text;
 
     *end++ = CHAR_0 + halves / 2;
@@ -208,6 +208,53 @@ static const u8 *SpeedText(void)
     return text;
 }
 
+static const u8 *SpeedText(void)
+{
+    return SpeedHalvesText(CtrSettings_SpeedHalves());
+}
+
+/* The battle engine already owns battle_speed: 0 follows world speed.
+ * This UI adds AUTO at either end of its existing 1x..4x steps. */
+static bool8 BattleSpeedExplicit(int halves)
+{
+    return halves == 2 || halves == 3 || halves == 4 || halves == 6 || halves == 8;
+}
+
+static void BattleSpeedStep(int direction)
+{
+    int configured = CtrSettings_GetInt("battle_speed", 0);
+    int halves = BattleSpeedExplicit(configured) ? configured : 0;
+
+    if (direction < 0)
+    {
+        if (halves == 0)
+            CtrSettings_SetInt("battle_speed", 8);
+        else if (halves == 2)
+            CtrSettings_SetInt("battle_speed", 0);
+        else
+            CtrSettings_StepBattleSpeed(-1, false);
+    }
+    else
+    {
+        if (halves == 0)
+            CtrSettings_SetInt("battle_speed", 2);
+        else if (halves == 8)
+            CtrSettings_SetInt("battle_speed", 0);
+        else
+            CtrSettings_StepBattleSpeed(1, false);
+    }
+}
+
+static const u8 *BattleSpeedText(void)
+{
+    static const u8 following[] = {CHAR_A, CHAR_U, CHAR_T, CHAR_O, EOS};
+    int configured = CtrSettings_GetInt("battle_speed", 0);
+
+    return BattleSpeedExplicit(configured)
+        ? SpeedHalvesText(CtrSettings_BattleSpeedHalves())
+        : following;
+}
+
 const CtrExtra gCtrExtras[] =
 {
     /* Features add their lines here. */
@@ -216,12 +263,14 @@ const CtrExtra gCtrExtras[] =
     {CTR_EXTRAS_SCREEN(CTR_EXTRAS_OPTIONS, 1), CTR_TEXT("3D SPRITES", "SPRITES 3D", "SPRITES 3D", "SPRITE 3D", "SPRITES 3D", "3D-SPRITES", "3D スプライト"), "voxel_sprite_depth", 4, 0, sSpriteDepths, NULL, NULL, NULL},
     {CTR_EXTRAS_SCREEN(CTR_EXTRAS_OPTIONS, 1), CTR_TEXT("3D DEPTH", "PROFUNDIDAD 3D", "PROFONDEUR 3D", "PROFOND. 3D", "PROFUNDIDADE 3D", "3D-TIEFE", "3D おくゆき"), "voxel_depth", 7, 3, sVoxelDepths, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("SPEED", "VELOC. JUEGO", "VITESSE", "VELOCITÀ", "VELOCIDADE", "TEMPO", "スピード"), "speed", 0, 0, NULL, NULL, SpeedStep, SpeedText},
+    /* The battle option controls the existing speed override; AUTO follows SPEED. */
+    {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("BATTLE SPEED", "VEL. COMBATE", "VITESSE COMBAT", "VEL. LOTTA", "VEL. BATALHA", "KAMPFTEMPO", "バトルそくど"), "battle_speed", 0, 0, NULL, NULL, BattleSpeedStep, BattleSpeedText},
     /* The game and the music keep real time on a slow frame; the sound
      * engine mixes on the DSP's clock (3ds_platform.c, 3ds_audio.c). */
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("REAL-TIME PACING", "RITMO REAL", "RYTHME RÉEL", "RITMO REALE", "RITMO REAL", "ECHTZEIT-TAKT", "リアルタイム"), "audio_clock", 2, 1, gCtrExtrasOffOn, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("EXP FOR CATCHING", "EXP AL CAPTURAR", "EXP. CAPTURE", "ESP. CATTURA", "EXP. POR CAPTURA", "EP BEIM FANGEN", "つかまえて けいけんち"), "exp_catch", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("PARTY EXP SHARE", "EXP TODO EQUIPO", "MULTI EXP.", "CONDIV. ESP.", "EXP. PARA EQUIPE", "EP FÜR TEAM", "みんなに けいけんち"), "exp_share", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
-    {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("TRADE EVO LV. 40", "EVOL. INTERC. N40", "ÉVOL. NIV. 40", "SCAMBIO LIV. 40", "EVO. TROCA NV. 40", "TAUSCH-ENTW. LV.40", "つうしん しんか Lv40"), "trade_evo", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
+    {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("TRADE EVO LV. 40", "EVOL. INTERC. N40", "ÉVOL. SANS ÉCHANGE", "SCAMBIO LIV. 40", "EVO. TROCA NV. 40", "TAUSCH-ENTW. LV.40", "つうしん しんか Lv40"), "trade_evo", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("HMS WITHOUT MOVE", "MO SIN APRENDER", "CS SANS CAP.", "MN SENZA MOSSA", "MOS SEM GOLPE", "VM OHNE ATTACKE", "ひでんわざ なしで"), "field_hms", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("VISIBLE WILD", "SALVAJES VISIBLES", "SAUV. VISIBLES", "SELV. VISIBILI", "SELVAGEM VISÍVEL", "WILDE SICHTBAR", "やせいが みえる"), "visible_wild", 4, 0, sVisibleWild, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("IVS AND EVS", "IV Y EV", "IV ET EV", "IV ED EV", "IVS E EVS", "IS UND FP", "こたいち どりょくち"), "ivs_evs", 2, 0, gCtrExtrasOffOn, NULL, NULL, NULL},
