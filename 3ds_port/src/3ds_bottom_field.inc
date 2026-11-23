@@ -278,7 +278,7 @@ static void DrawFlyIcon(const ViewState *s, int mx, int my, int wt, int ht, int 
         DrawSprite(sFlyIcons + frame * 32, wt, ht, x, y, sFlyIconPal.c);
 }
 
-static void DrawFlyIcons(const ViewState *s)
+static void DrawFlyIcons(const ViewState *s, bool8 visitedOnly)
 {
     int saved[4];
 
@@ -297,7 +297,14 @@ static void DrawFlyIcons(const ViewState *s)
         int wt = e->width == 2 ? 2 : 1, ht = wt == 1 && e->height == 2 ? 2 : 1;
         int frame = wt == 2 ? 1 : ht == 2 ? 3 : 0;
 
-        if (!((s->flyVisited >> (mapsec - MAPSEC_LITTLEROOT_TOWN)) & 1))
+        bool8 visited = ((s->flyVisited >> (mapsec - MAPSEC_LITTLEROOT_TOWN)) & 1) != 0;
+
+        /* Fly retains its full destination map. Progressive MAP reveals
+         * a marker only after actually visiting that town. The former grey
+         * unvisited icons looked like destinations already unlocked. */
+        if (!visited && visitedOnly)
+            continue;
+        if (!visited)
             frame += 5;
         DrawFlyIcon(s, (e->x + 1) * 8, (e->y + 2) * 8, wt, ht, frame);
     }
@@ -308,6 +315,22 @@ static void DrawFlyIcons(const ViewState *s)
         DrawFlyIcon(s, (e->x + 1) * 8 - 4, (e->y + 2) * 8 - 4, 2, 2, 10);
     }
     RestoreClip(saved);
+}
+
+/* The indicator makes progressive mode observable even on a fresh save
+ * with no city flags yet. It never changes the underlying region map or Fly. */
+static void DrawVisitProgress(const ViewState *s)
+{
+    char caption[32];
+    unsigned visited = 0;
+    const unsigned total = MAPSEC_EVER_GRANDE_CITY - MAPSEC_LITTLEROOT_TOWN + 1;
+    int x = RMAP_ORIGIN_X + 4, y = RMAP_ORIGIN_Y + 4;
+
+    for (unsigned i = 0; i < total; ++i)
+        visited += (s->flyVisited >> i) & 1u;
+    snprintf(caption, sizeof(caption), "VILLES %u/%u", visited, total);
+    y = Plate(x, y, 100, 18, sCreamPlate, PLATE_STATE_NORMAL);
+    TextIn(Ascii(caption), x + 4, y, 92, 18, &sSmall, 'c', STYLE_INK, 6);
 }
 
 /*
@@ -598,10 +621,15 @@ static void DrawRegionMap(const ViewState *s)
     }
     else
     {
-        /* Fly always shows the destinations. Ordinary MAP shows them only
-         * when the player selects progressive visit markers. */
-        if (s->mapFly || s->mapProgressive)
-            DrawFlyIcons(s);
+        /* Fly keeps all possible destinations. Progressive MAP shows only
+         * visited markers, plus a visible progress counter. */
+        if (s->mapFly)
+            DrawFlyIcons(s, FALSE);
+        else if (s->mapProgressive)
+        {
+            DrawFlyIcons(s, TRUE);
+            DrawVisitProgress(s);
+        }
         DrawMapMarks(s);
         AddHit(RMAP_ORIGIN_X, RMAP_ORIGIN_Y, RMAP_PIC_W, RMAP_PIC_H, HIT_MAP);
         DrawMapPanel(s);
