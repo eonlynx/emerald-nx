@@ -7196,7 +7196,7 @@ static bool8 MoveMapCursor(const ViewState *from, const ViewState *to)
     if (to->mapProgressive)
     {
         ClipPush(restoredClip, r[0][0], r[0][1], r[0][2], r[0][3]);
-        DrawFlyIcons(to);
+        DrawFlyIcons(to, TRUE);
         ClipPop(restoredClip);
     }
     /* The mark, and a picked cell's cursor over it, as Render draws them. */
