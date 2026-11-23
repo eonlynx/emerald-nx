@@ -452,6 +452,15 @@ static bool8 MapOverlayMeets(const ViewState *s, int x0, int y0, int x1, int y1)
     PlateBounds(ZOOM_X, ZOOM_Y, ZOOM_W, ZOOM_H, &b[0], &b[1], &b[2], &b[3]);
     if (RectsMeet(x0, y0, x1, y1, b[0], b[1], b[2], b[3]))
         return TRUE;
+    /* The progress counter is an overlay, not part of the map cache.
+     * A moving player marker under it needs a full redraw. */
+    if (s->mapProgressive && !s->mapFly)
+    {
+        PlateBounds(RMAP_ORIGIN_X + 4, RMAP_ORIGIN_Y + 4, 100, 18,
+                    &b[0], &b[1], &b[2], &b[3]);
+        if (RectsMeet(x0, y0, x1, y1, b[0], b[1], b[2], b[3]))
+            return TRUE;
+    }
     if (!MapPanelWidth(s))
         return FALSE;
     MapPanelRect(s, &px, &pw, &ph);
