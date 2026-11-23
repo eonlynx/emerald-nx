@@ -45,20 +45,29 @@ def main():
     extras = (ROOT / 'src/3ds_extras.c').read_text(encoding='utf-8')
     table = (ROOT / 'src/3ds_field_qol_extras.inc').read_text(encoding='utf-8')
     field = (ROOT / 'src/3ds_bottom_field.inc').read_text(encoding='utf-8')
-    # Classic MAP preserves the original picture. Progressive MAP draws
-    # grey/visited town markers; Fly must keep showing its destinations.
+    # Classic MAP preserves its picture. Progressive MAP only reveals
+    # visited cities; FLY keeps all possible destinations as before.
     draw_map = function(field, 'static void DrawRegionMap(')
+    draw_icons = function(field, 'static void DrawFlyIcons(')
+    progress = function(field, 'static void DrawVisitProgress(')
+    overlay = function(field, 'static bool8 MapOverlayMeets(')
     snapshot = function(bottom, 'static void Snapshot(')
     move_cursor = function(bottom, 'static bool8 MoveMapCursor(')
     assert 'EXTRA_ROW("map_progressive")' in options
     assert '"map_progressive", 2, 0, sMapModes' in extras
     assert 's->mapProgressive = CtrExtras_Get("map_progressive") != 0;' in snapshot
-    assert 'if (s->mapFly || s->mapProgressive)\n            DrawFlyIcons(s);' in draw_map
+    assert 'if (s->mapFly)\n            DrawFlyIcons(s, FALSE);' in draw_map
+    assert 'else if (s->mapProgressive)' in draw_map
+    assert 'DrawFlyIcons(s, TRUE);' in draw_map
+    assert 'DrawVisitProgress(s);' in draw_map
+    assert 'if (!visited && visitedOnly)\n            continue;' in draw_icons
+    assert 'VILLES %u/%u' in progress
+    assert 's->mapProgressive && !s->mapFly' in overlay
     assert snapshot.index('s->flyVisited |= 1 << i;') < snapshot.index('if (s->mapFly)\n                s->flyCanFly')
-    # The optimized cursor redraw restores icons only when enabled.
+    # The optimized cursor redraw restores only visited icons.
     assert 'if (to->mapProgressive)' in move_cursor
-    assert 'DrawFlyIcons(to);' in move_cursor
-    assert move_cursor.index('DrawFlyIcons(to);') < move_cursor.index('DrawMapMarks(to);')
+    assert 'DrawFlyIcons(to, TRUE);' in move_cursor
+    assert move_cursor.index('DrawFlyIcons(to, TRUE);') < move_cursor.index('DrawMapMarks(to);')
     # Entries after the sentinel corrupt count-based settings lookup.
     assert extras.index('#include "3ds_field_qol_extras.inc"') < extras.index('    {0},')
     hook_patch = ROOT.parent / 'patches/pokeemerald/0078-field-clock-notice.patch'
