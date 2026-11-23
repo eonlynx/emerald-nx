@@ -518,6 +518,18 @@ void Port_SaveInit(void)
     }
     /* A short file still holds whole sectors; Emerald recovers the older slot. */
     sSaveAvailable = true;
+    /* A save copied into an Android app's external data may be readable but
+     * belong to another UID. Diagnose that before the first save attempt,
+     * without chmod, rename, rewrite or changing the game's flash state. */
+    if (!CtrScenario_SavePath())
+    {
+        FILE *writable = fopen(path, "r+b");
+
+        if (writable == NULL)
+            CtrLog_Write(CTR_LOG_ERROR, "save loaded but not writable: %s (errno=%d)", path, errno);
+        else
+            fclose(writable);
+    }
     CtrLog_Write(CTR_LOG_FS, "save loaded: %s (%ld bytes)", path, size);
     if (size > flashBytes)
         CtrLog_Write(CTR_LOG_FS, "save: %ld bytes after the flash image kept as they are",
