@@ -328,7 +328,9 @@ static void DrawVisitProgress(const ViewState *s)
 
     for (unsigned i = 0; i < total; ++i)
         visited += (s->flyVisited >> i) & 1u;
-    snprintf(caption, sizeof(caption), "VILLES %u/%u", visited, total);
+    snprintf(caption, sizeof(caption),
+             CTR_TEXT("CITIES %u/%u", "CIUDADES %u/%u", "VILLES %u/%u", "CITTA %u/%u",
+                      "CIDADES %u/%u", "STAEDTE %u/%u", "TOWNS %u/%u"), visited, total);
     y = Plate(x, y, 100, 18, sCreamPlate, PLATE_STATE_NORMAL);
     TextIn(Ascii(caption), x + 4, y, 92, 18, &sSmall, 'c', STYLE_INK, 6);
 }
