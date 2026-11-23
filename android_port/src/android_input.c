@@ -33,11 +33,29 @@ void CtrInput_Scan(void)
     AndroidHost_GetInput(&host);
     uint32_t down = host.buttons & ~sLastButtons;
     sLastButtons = host.buttons;
-    /* ZR and ZL step the fast-forward speed, as on a New 3DS. */
-    if ((down & HOST_BTN_ZR) && !CtrScenario_Active())
-        CtrSettings_StepSpeed(1, false);
-    if ((down & HOST_BTN_ZL) && !CtrScenario_Active())
-        CtrSettings_StepSpeed(-1, false);
+    /* ZR/ZL change the speed of the scene that is actually playing.
+     * In battle they adjust its independent battle_speed setting; outside
+     * battle they retain the existing overworld SPEED behavior. L/R remain
+     * available through Platform_GetKeyInput's normal battle shortcut. */
+    if (!CtrScenario_Active())
+    {
+        bool battle = CtrPlatform_BattleSpeedKeys();
+
+        if (down & HOST_BTN_ZR)
+        {
+            if (battle)
+                CtrPlatform_StepBattleSpeed(1, false);
+            else
+                CtrSettings_StepSpeed(1, false);
+        }
+        if (down & HOST_BTN_ZL)
+        {
+            if (battle)
+                CtrPlatform_StepBattleSpeed(-1, false);
+            else
+                CtrSettings_StepSpeed(-1, false);
+        }
+    }
     for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
         if (host.buttons & keys[i])
             sample.buttons |= 1u << i;
