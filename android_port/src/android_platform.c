@@ -39,7 +39,19 @@ void CtrPlatform_NoteBottom(float ms) { sTiming.bottomMs = ms; }
 
 /* ── Threads (the shim's threadCreate, and CtrPlatform_StartThread) ───── */
 /* Their stacks are below 4 GiB (android_lowmem.h): game code takes the
- * address of a local and keeps it in 32 bits. */
+ * address of a local and keeps it in 32 bits.  On Switch libnx also exports a
+ * threadCreate, with a different signature and used by its own newlib layer;
+ * the game's libctru-shaped calls use these prefixed wrappers instead. */
+#ifdef __SWITCH__
+#define PLATFORM_THREAD_CREATE CtrThreadCreate
+#define PLATFORM_THREAD_JOIN CtrThreadJoin
+#define PLATFORM_THREAD_FREE CtrThreadFree
+#else
+#define PLATFORM_THREAD_CREATE threadCreate
+#define PLATFORM_THREAD_JOIN threadJoin
+#define PLATFORM_THREAD_FREE threadFree
+#endif
+
 struct AndroidThread
 {
     pthread_t thread;
@@ -60,7 +72,7 @@ static void *ThreadMain(void *p)
     return NULL;
 }
 
-Thread threadCreate(ThreadFunc entry, void *arg, size_t stackSize, int prio, int core, bool detached)
+Thread PLATFORM_THREAD_CREATE(ThreadFunc entry, void *arg, size_t stackSize, int prio, int core, bool detached)
 {
     struct AndroidThread *t = calloc(1, sizeof(*t));
     pthread_attr_t attr;
@@ -93,7 +105,7 @@ Thread threadCreate(ThreadFunc entry, void *arg, size_t stackSize, int prio, int
     return detached ? (Thread)1 : t;
 }
 
-Result threadJoin(Thread thread, u64 timeoutNs)
+Result PLATFORM_THREAD_JOIN(Thread thread, u64 timeoutNs)
 {
     (void)timeoutNs;
     if (thread && thread != (Thread)1)
@@ -107,7 +119,7 @@ Result threadJoin(Thread thread, u64 timeoutNs)
     return 0;
 }
 
-void threadFree(Thread thread)
+void PLATFORM_THREAD_FREE(Thread thread)
 {
     if (thread && thread != (Thread)1)
         free(thread);
@@ -115,7 +127,7 @@ void threadFree(Thread thread)
 
 bool CtrPlatform_StartThread(void (*entry)(void *), void *arg, unsigned stack, int core)
 {
-    return threadCreate(entry, arg, stack, 0x31, core, true) != NULL;
+    return PLATFORM_THREAD_CREATE(entry, arg, stack, 0x31, core, true) != NULL;
 }
 
 void CtrPlatform_SleepUs(unsigned microseconds) { usleep(microseconds); }

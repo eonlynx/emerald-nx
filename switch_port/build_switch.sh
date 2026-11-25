@@ -58,7 +58,7 @@ mkdir -p "$APP/licenses"
 cp "$ROOT/LICENSE-PORT.md" "$APP/licenses/LICENSE-PORT.txt"
 cp "$ROOT/NOTICE.md" "$APP/licenses/NOTICE.txt"
 
-( cd "$DIST" && rm -f ../emerald-nx.zip && zip -qr ../emerald-nx.zip switch )
+( cd "$DIST" && rm -f emerald-nx.zip && zip -qr emerald-nx.zip switch )
 
 echo
 echo "Done: $DIST/switch/emerald-nx/"

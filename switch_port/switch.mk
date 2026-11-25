@@ -56,7 +56,12 @@ GAMEFLAGS += -DCTR_VOXEL_LIGHTING=$(VOXEL_LIGHTING) -DCTR_SHOW_FPS=$(SHOW_FPS) -
 CPPFLAGS += -DCTR_VOXEL_LIGHTING=$(VOXEL_LIGHTING) -DCTR_SHOW_FPS=$(SHOW_FPS) -DCTR_LANG_PT_BR=$(CTR_LANG_PT_BR)
 CPPFLAGS += -DCTR_DATA_BACKEND=$(DATA_BACKEND)
 
-TARGET := emerald-game
+# The shared full.mk rules (asset table, script/song bundles, gamedata) name
+# the executable $(TARGET).elf and default their ELF argument to
+# emerald3ds.elf, as on 3DS/Android.  Keep that target name and give the NRO
+# the loader-facing name.
+TARGET := emerald3ds
+GAME_NRO := emerald-game.nro
 APP_TITLE := Emerald NX
 APP_AUTHOR := Zallax / community
 APP_VERSION := 0.5.0-switch
@@ -66,22 +71,28 @@ EXESUFFIX :=
 BOTTOM_ART_FLAGS := --height 240
 
 LIBS := -L$(DEVKITPRO)/portlibs/switch/lib -L$(DEVKITPRO)/libnx/lib \
-	-lEGL -lGLESv2 -lglapi -ldrm_nouveau -lnx -lm
+	-lEGL -lGLESv2 -lglapi -ldrm_nouveau -lnx -lstdc++ -lm
 FS_WRAPPED := fopen rename remove unlink mkdir stat access open
 # libnx's switch.specs hardcodes -T switch.ld.  The port's script adds the
 # game-data sections to that base script, so the build uses a local copy of
 # the specs that names the generated script instead (GNU ld treats the last
 # non-INSERT script as the base; keeping the original in front would merge
 # both layouts).
+comma := ,
+# The game's assembled data keeps 4-byte absolute addresses (the image stays
+# below 4 GiB).  GNU ld refuses R_AARCH64_ABS32 in a PIE, but every such site
+# is in .gamedata, which is NOLOAD in the release link and filled/relocated by
+# the bundle loader.  --noinhibit-exec keeps the image the bundle script needs;
+# a link check rejects any diagnostic other than those .gamedata ABS32 sites.
 LDFLAGS_BASE := $(ARCH) -specs=build/switch_release.specs -Wl,--gc-sections \
-	-Wl,-Map,build/$(TARGET).map
+	-Wl,-z,notext -Wl,--noinhibit-exec -Wl$(comma)-Map$(comma)build/$(TARGET).map
 LDFLAGS := $(LDFLAGS_BASE)
 LDFLAGS += $(foreach f,$(FS_WRAPPED),-Wl,--wrap=$(f))
 
 .PHONY: FORCE
 build/config: FORCE
 	@mkdir -p build
-	@printf '%s\n' '$(CPPFLAGS) $(CFLAGS) $(GAMEFLAGS) $(GAMECFLAGS) $(LDFLAGS) $(LIBS)' > build/config.new
+	@printf '%s\n' '$(CPPFLAGS) $(CFLAGS) $(GAMEFLAGS) $(GAMECFLAGS)' > build/config.new
 	@cmp -s build/config.new $@ || cp build/config.new $@
 	@rm -f build/config.new
 
@@ -91,7 +102,7 @@ include full.mk
 # LDFLAGS, or the two links would not lay the same symbols out.  Swap only
 # the specs file and the map name.
 LDFLAGS_IMAGE := $(filter-out -specs=build/switch_release.specs,$(LDFLAGS))
-LDFLAGS_IMAGE := $(filter-out -Wl,-Map,build/$(TARGET).map,$(LDFLAGS_IMAGE))
+LDFLAGS_IMAGE := $(filter-out -Wl$(comma)-Map$(comma)build/$(TARGET).map,$(LDFLAGS_IMAGE))
 LDFLAGS_IMAGE += -specs=build/switch_image.specs -Wl,-Map,build/$(TARGET)-image.map
 
 # Shared backend units that include libctru's <3ds.h> use the Switch shim.
@@ -191,7 +202,7 @@ build/$(TARGET).map: $(TARGET).elf ;
 $(TARGET).nacp: Makefile
 	$(DEVKITPRO)/tools/bin/nacptool --create "$(APP_TITLE)" "$(APP_AUTHOR)" "$(APP_VERSION)" $@
 
-$(TARGET).nro: $(TARGET).elf $(TARGET).nacp $(DEVKITPRO)/libnx/default_icon.jpg
+$(GAME_NRO): $(TARGET).elf $(TARGET).nacp $(DEVKITPRO)/libnx/default_icon.jpg
 	$(DEVKITPRO)/tools/bin/elf2nro $< $@ --icon=$(DEVKITPRO)/libnx/default_icon.jpg --nacp=$(TARGET).nacp
 
 # Data staging: engine files and game data both live under data/ on the SD
@@ -211,7 +222,7 @@ romfs/engine/build_id.bin: $(TARGET).elf romfs/engine/abi.bin scripts/gen_build_
 	"$(PYTHON)" scripts/gen_build_id.py $(TARGET).elf romfs/engine/abi.bin $@
 
 .PHONY: all romfs-data clean check-save-layout check-overlays
-all: $(TARGET).nro romfs-data
+all: $(GAME_NRO) romfs-data
 
 # Layout audits, run by hand (the overlay check preprocesses every game unit
 # and takes minutes).  The save check compares devkitARM's 32-bit layout with
@@ -228,4 +239,4 @@ check-overlays:
 romfs-data: $(ROMFS_SWITCH) romfs/engine/abi.bin romfs/engine/build_id.bin romfs/data.embedded
 
 clean:
-	rm -rf build $(TARGET).elf $(TARGET).nro $(TARGET).nacp $(TARGET).map romfs
+	rm -rf build $(TARGET).elf $(GAME_NRO) $(TARGET).nacp $(TARGET).map romfs

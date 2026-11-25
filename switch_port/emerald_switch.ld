@@ -88,7 +88,7 @@ SECTIONS
 	.rodata :
 	{
 		/* The game's translation units' rodata is bundled in .gamedata. */
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(.rodata .rodata.* .gnu.linkonce.r.*)
+		EXCLUDE_FILE(*build/root/*) *(.rodata .rodata.* .gnu.linkonce.r.*)
 		/* The port's platform layer stays in the executable. */
 		*build/root/src/platform/*(.rodata .rodata.* .gnu.linkonce.r.*)
 		. = ALIGN(8);
@@ -146,8 +146,8 @@ SECTIONS
 	.data.rel.ro :
 	{
 		/* The game's pointer tables are bundled in .gamedata. */
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*)
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*)
+		EXCLUDE_FILE(*build/root/*) *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*)
+		EXCLUDE_FILE(*build/root/*) *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*)
 		. = ALIGN(8);
 	} :data
 
@@ -176,7 +176,7 @@ SECTIONS
 
 		/* The port's platform layer and everything outside the game tree. */
 		*build/root/src/platform/*(.data .data.*)
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(.data .data.* .gnu.linkonce.d.*)
+		EXCLUDE_FILE(*build/root/*) *(.data .data.* .gnu.linkonce.d.*)
 		SORT(CONSTRUCTORS)
 		. = ALIGN(8);
 	} :data
@@ -189,8 +189,9 @@ SECTIONS
 	.gamedata ALIGN(32) @GAMEDATA_TYPE@ :
 	{
 		__ctr_gamedata = .;
-		*build/root/src/*(.rodata .rodata.* .data.rel.ro .data.rel.ro.*)
-		*build/root/data/*(.rodata .rodata.* .data.rel.ro .data.rel.ro.*)
+		/* Every game object, including the rw_data copies whose paths keep
+		 * "build/root" after "build/rw/". */
+		*build/root/*(.rodata .rodata.* .data.rel.ro .data.rel.ro.*)
 		/* The Mystery Event command table: assembled 32-bit addresses, which
 		 * only the bundle loader fills in on arm64. */
 		*build/root/data/*(script_data)
@@ -226,9 +227,9 @@ SECTIONS
 		__ctr_game_bss_end = .;
 
 		*build/root/src/platform/*(.bss .bss.* COMMON)
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(.dynbss)
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(.bss .bss.* .gnu.linkonce.b.*)
-		EXCLUDE_FILE(*build/root/src/* *build/root/data/*) *(COMMON)
+		EXCLUDE_FILE(*build/root/*) *(.dynbss)
+		EXCLUDE_FILE(*build/root/*) *(.bss .bss.* .gnu.linkonce.b.*)
+		EXCLUDE_FILE(*build/root/*) *(COMMON)
 		. = ALIGN(8);
 	} :data
 

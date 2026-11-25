@@ -228,9 +228,15 @@ static inline int LightEvent_WaitTimeout(LightEvent *e, s64 ns)
 /* â”€â”€ Threads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 typedef struct AndroidThread *Thread;
 typedef void (*ThreadFunc)(void *);
-Thread threadCreate(ThreadFunc entry, void *arg, size_t stackSize, int prio, int core, bool detached);
-Result threadJoin(Thread thread, u64 timeoutNs);
-void threadFree(Thread thread);
+/* libctru's names, implemented on pthreads with low stacks by
+ * android_platform.c.  Prefix them so libnx's own threadCreate (used by its
+ * newlib layer, and with a different signature) is not shadowed. */
+Thread CtrThreadCreate(ThreadFunc entry, void *arg, size_t stackSize, int prio, int core, bool detached);
+Result CtrThreadJoin(Thread thread, u64 timeoutNs);
+void CtrThreadFree(Thread thread);
+#define threadCreate CtrThreadCreate
+#define threadJoin CtrThreadJoin
+#define threadFree CtrThreadFree
 
 /* â”€â”€ Local wireless (UDS) over Bluetooth LE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #include "3ds_uds.h"
