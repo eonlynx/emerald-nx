@@ -282,7 +282,7 @@ int main(int argc, char **argv) {
         setvbuf(g_log, NULL, _IOLBF, 0);
     }
 
-    log_line("Emerald NX loader");
+    log_line("Emerald NX loader (direct CRT0 entry, 2026-11-25b)");
     log_line("loader: applet type %d, own process handle 0x%x, main thread 0x%x",
              appletGetAppletType(), envGetOwnProcessHandle(), envGetMainThreadHandle());
 
@@ -363,7 +363,10 @@ int main(int argc, char **argv) {
     /* The game NRO has its own libnx console state. */
     consoleExit(NULL);
 
-    switch_jump_to_nro(entries, game_base, stack_top, process);
+    /* The NRO starts with a branch to its CRT0 at +0x80.  Enter the CRT0
+     * directly: it also works if the first page's branch is not fetched for
+     * any reason. */
+    switch_jump_to_nro(entries, (char *)game_base + 0x80, stack_top, process);
     fail("loader: game returned unexpectedly");
     return 0;
 }
