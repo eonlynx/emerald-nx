@@ -1,291 +1,347 @@
-<h1 align="center">Emerald for Android</h1>
+<div align="center">
+  <img src="switch_port/icon.jpg" alt="Emerald NX" width="160">
 
-<p align="center">
-  <strong>Hoenn on two screens, natively on Android.</strong><br>
-  An Android port of <a href="https://github.com/ZallaxDev/emerald-3ds">Emerald 3DS</a> for dual-screen handhelds, starting with the Ayn Thor.
-</p>
+  <h1>Emerald NX</h1>
 
-> **Work in progress.** This port is under active development. Some things may
-> not work correctly yet, and some features of Emerald 3DS are not ported yet
-> (see [Status](#status)). Back up your save before updating, and expect bugs.
+  <p>
+    <strong>Hoenn, natively on Nintendo Switch.</strong><br>
+    A homebrew <code>.nro</code> port of <a href="https://github.com/ZallaxDev/emerald-3ds">Emerald 3DS</a>,
+    built on the same native engine as the 3DS and Android versions.
+  </p>
+
+  <p>
+    <a href="#install">Install</a> ·
+    <a href="#features">Features</a> ·
+    <a href="#controls">Controls</a> ·
+    <a href="#building-from-source">Building</a> ·
+    <a href="#status">Status</a> ·
+    <a href="#credits">Credits</a>
+  </p>
+</div>
+
+> [!IMPORTANT]
+> **No ROMs or saves are included.** Emerald NX does not contain Pokémon Emerald,
+> a ROM, a save file or extracted game data in this repository. You need your own
+> legally obtained copy of the game for any data generated from it. This is an
+> unofficial fan project, not affiliated with or endorsed by Nintendo, Game Freak
+> or Creatures.
+
+> [!WARNING]
+> **The first hardware test is still pending.** The Switch build, package and
+> static audits are complete, but no console has run the final package yet.
+> Back up your SD card and your saves before testing, and expect issues on the
+> first boot.
+
+> [!NOTE]
+> **This repository remains multiplatform.** The 3DS and Android ports are still
+> built from the same tree. Emerald NX is the main development focus; the
+> original platform documentation is kept in
+> [README-emerald-3ds.md](README-emerald-3ds.md) and
+> [README-emerald-android.md](README-emerald-android.md).
 
 ---
 
-Emerald for Android runs the Pokémon Emerald decompilation **natively** on
-Android - no emulator - with the same two-screen design as Emerald 3DS: the
-game on the top screen, and a touch interface on the bottom screen in place of
-the START menu. The optional **voxel overworld** lets you explore Hoenn from a
-new angle, rendered at the device's full resolution.
+## What it is
 
-## What's new in 0.5.0.3
+Emerald NX runs the Pokémon Emerald decompilation **natively on Nintendo
+Switch** — no emulator. It is a port of the Emerald 3DS engine to Horizon:
+the same game bridge, touch interface, voxel overworld and enhancements, with
+a Switch backend for video, audio, input, filesystem and lifecycle.
 
-- **The top screen fits the display.** Its width follows the display's
-  shape, up to a little wider than 16:9; on wider displays black bars fill
-  the sides. Nothing of the text boxes or menus is cut off, and the picture
-  stays clear of a camera hole. The Ayn Thor's screen is filled as before.
-- **On-screen controls** (d-pad, A, B, L, R, START, SELECT) appear when no
-  controller is connected, and hide when one is.
-- **Single-screen devices (experimental).** The game is now playable on
-  ordinary phones and single-screen handhelds, with controls and the menus
-  in reach:
-  - **START** opens the bottom screen's interface as a window over the game,
-    to be used by touch or with the buttons; START or B closes it;
-  - the **PC** and **battles** play on the one screen as on the original
-    game, with their own menus.
+A small loader (`emerald-nx.nro`) maps the real game NRO below 4 GiB and starts
+it. The engine keeps addresses in 32-bit fields, so the game image, heap,
+stack and newlib heap all stay in the low address range; the code itself runs
+as native AArch64.
 
-  Single-screen support is new and has only been tested on one phone (a
-  Galaxy Z Flip7): expect rough edges there. Dual-screen devices play as
-  before.
-
-Updating from 0.5.0.2 keeps your save. The app asks for the ROM once more,
-as this version builds its game data anew.
-
-## Goal of the project
-
-The goal is to **port everything Emerald 3DS does to Android**. Every feature
-of Emerald 3DS is meant to come over in time. Alongside that, this project may
-add **features of its own** that exist only in the Android version (for
-example **3D SPRITES**, below). So: every Emerald 3DS feature, ported as
-faithfully as possible, plus a few extras.
-
-## Getting started
-
-Everything happens inside the app: **no website, no desktop tool, no separate
-builder.**
-
-1. Download the latest APK from this repository's
-   [Releases](../../releases/latest) page and install it.
-2. Put your **own clean, supported Pokémon Emerald ROM** somewhere on the
-   device (see [supported cartridges](#supported-cartridges)).
-3. Open the app. On first launch it asks for the ROM: tap **Choose ROM** and
-   pick it. The app recognizes which cartridge it is (English, French,
-   Italian, German or Spanish) and plays that language.
-4. The app builds the game's data from your ROM on the device (a progress bar
-   shows each step), then starts the game. From then on it opens straight into
-   the game.
-
-The ROM is only read, to build the game data: it is never copied, modified,
-uploaded or sent anywhere. The APK itself contains no game content; it only
-holds the port's code and a *recipe* describing how to rebuild the game
-data from your own cartridge.
-
-After an update that changes the game data, the app asks for the ROM again
-and rebuilds it. Your save is kept.
-
-### Requirements
-
-- Android 13 or newer, with OpenGL ES 3.0, on a 64-bit ARM device
-  (`arm64-v8a`).
-- Bluetooth LE for local wireless play (optional).
-- An internet connection once, for the follower Pokémon's sprites and texts
-  (optional: without it the game plays without a follower).
-- **Target device: the [Ayn Thor](https://www.ayntec.com/).** The port is
-  developed, laid out and tested on it.
-- **Dual-screen devices** play with the bottom screen's interface on the
-  second display. Other dual-screen devices than the Thor may work but are
-  untested.
-- **Single-screen devices** (phones, single-screen handhelds) are supported
-  **experimentally**: on-screen controls, the bottom screen's interface as a
-  window opened with START, the PC and battles as on the original game
-  (see [What's new in 0.5.0.3](#whats-new-in-0503)).
-
-### Supported cartridges
-
-Only a clean, unmodified dump is accepted:
-
-| Language | Cartridge | Game code |
-| :--- | :--- | :--- |
-| English | Pokémon Emerald Version (USA, Europe) | BPEE |
-| French | Pokémon Version Émeraude (France) | BPEF |
-| Italian | Pokémon Versione Smeraldo (Italia) | BPEI |
-| German | Pokémon Smaragd-Edition (Deutschland) | BPED |
-| Spanish | Pokémon Edición Esmeralda (España) | BPES |
-
-The app recognizes which of them your ROM is and plays the game in its
-language ([languages](docs/ANDROID-LANGUAGES.md)).
-Emerald 3DS also supports Japanese and a Brazilian Portuguese translation,
-which the Android port does not carry yet.
-ROM hacks are not supported.
+The game is presented on the Switch's single screen: the 432×240 top picture
+follows the display's aspect, and the bottom-screen interface is drawn as a
+panel over it, as in the Android single-screen version. Handheld mode renders
+at 1280×720, docked at 1920×1080.
 
 ## Features
 
 | | What to expect |
 | :--- | :--- |
-| **Native Android** | The game code runs natively on the device's ARM CPU, drawn with OpenGL ES 3 and played through AAudio. No emulator. |
-| **Two screens, one adventure** | The game on the top screen, the touch interface on the bottom screen. On the Thor the bottom interface is laid out for its taller screen: bigger party entries, a longer bag list and larger settings rows. |
-| **Built on the device** | First launch turns your own ROM into the game's data inside the app. |
-| **Optional voxel overworld** | Modelled buildings, trees, signposts and terrain relief from Emerald 3DS, rendered at the screen's full resolution, with adjustable camera angle and zoom. |
-| **Full-screen presentation** | The intro, title, menus, naming screen, clock and other full-screen scenes fill the whole top screen. |
-| **HD battle interface** | Battles laid out for the wide screen, with an HD text box and info boxes, and optional 3D battles over the voxel world. |
-| **Follower Pokémon** | Your lead Pokémon walks behind you on its HeartGold/SoulSilver sprite, and speaks when you talk to it, as in Emerald 3DS. |
-| **Five languages** | English, French, Italian, German and Spanish cartridges: the app recognizes your ROM and plays the game in its language. |
-| **Day/night lighting** | Optional outdoor lighting, lit windows and street lamps, and a faster clock, as in Emerald 3DS. |
-| **Local wireless play** | The Pokémon Center's link rooms between two devices nearby, over Bluetooth LE: no router, no internet. |
-| **Enhancements** | Physical/special split, IVs and EVs on the summary, infinite TMs, running indoors, Repel prompt, visible wild Pokémon, fast-forward (ZR/ZL) and more, all optional. |
-| **3D SPRITES** *(Android only)* | People and Pokémon in the voxel world drawn 1 to 3 voxels deep instead of flat (OPTION → WORLD → 3D). |
+| **Native Switch homebrew** | A libnx `.nro` running the real engine on the console's ARM CPU, with EGL/GLES3 video and libnx audout audio. No emulator. |
+| **Single-screen layout** | The game on top, with the bottom screen's touch interface as a panel over it. Docked and handheld modes are handled without restarting. |
+| **Low-address loader** | A two-stage NRO loader reserves the image, heap and stack below 4 GiB with `svcMapProcessCodeMemory`, then enters the game. |
+| **Full resolution** | 1280×720 handheld / 1920×1080 docked; frame pacing uses the same 59.8261 Hz clock as the 3DS and Android ports. |
+| **HOME, sleep and dock** | `appletMainLoop`/`appletHook` handle HOME and exit, focus loss pauses audio, and the EGL surface is recreated when the console changes mode. |
+| **Optional voxel overworld** | Modelled buildings, trees, signposts and terrain relief from Emerald 3DS, rendered with the same voxel renderer through GLES3. |
+| **HD battle interface** | Wide-screen battle boxes, the 3D battle view and the bottom-screen interface. |
+| **Follower Pokémon** | Your lead Pokémon walks behind you with its HeartGold/SoulSilver sprite and messages, as in Emerald 3DS. |
+| **Language builds** | English, Spanish, French, Italian, German and experimental Japanese game data, bootstrapped from a clean cartridge of that language. The prebuilt ZIP uses the language of the tree it was built from (English by default). |
+| **Day/night and enhancements** | Optional outdoor lighting, lit windows, a faster clock, physical/special split, IVs/EVs, infinite TMs, running indoors, Repel prompt, visible wild Pokémon and more. |
+| **QoL options** | BATTLE SPEED (AUTO or explicit), progressive/classic map markers and the existing speed controls. These change no story or events. |
+| **3DS and Android still build** | The shared engine and ports remain in the repository; the Switch backend is additive. |
 
 ### A new perspective on Hoenn
 
-The voxel overworld is **off by default**. Open **OPTION** on the bottom
-screen and enable **VOXEL 3D** (WORLD → 3D), then adjust **3D ANGLE** and
-**3D ZOOM**. **3D SPRITES** gives the characters depth.
-
-> **3D mode is a work in progress** in Emerald 3DS itself: many towns and
-> routes have modelled buildings and relief, but large parts of the map and
-> most interiors are still flat.
-
-### Follower Pokémon
-
-Turn it on in OPTION → WORLD → FIELD → **FOLLOWER**. The party's first
-Pokémon then follows you around the overworld, and talking to it shows how
-it feels, in HeartGold/SoulSilver's words.
-
-The sprites and texts come from HeartGold/SoulSilver, so they cannot ship
-with the app: the app downloads them in the background from public
-repositories (pinned versions of the pokeheartgold decompilation and a
-Pokémon text corpus), checks each file, converts it and keeps it: about
-4.5 MB to download, 3.5 MB kept. Nothing else is sent or received. Without a connection the game
-simply plays without a follower until the files are there.
-
-### Local wireless play
-
-Two devices with the app play together over Bluetooth, the way two 3DS
-consoles do over local wireless: walk into a Pokémon Center's link rooms on
-both and they find each other. No router or internet is needed, only
-Bluetooth. The first time, the app asks for the **Nearby devices**
-permission, and to turn Bluetooth on if it is off.
-
-Both devices need the **same version** of the app: different versions do not
-link. Going to the background (the home screen, another app) leaves the
-session.
-
-What works so far: both devices join the link rooms, see and walk among each
-other, and leave cleanly, even when one side quits. **Trades, battles and the
-minigames (Berry Blender, Pokémon Jump, Dodrio Berry Picking) are not fully
-tested yet**: they will most likely work, but back up your save before trying
-them.
-
-## Versioning
-
-Releases follow Emerald 3DS's version numbers: **0.5.0** here is Emerald
-3DS 0.5.0 ported to Android, and each new Emerald 3DS release is ported as
-its own version. Features added only in this project get a fourth number on
-top of the version they build on: **0.5.0.1**, **0.5.0.2**...
+The voxel overworld is **off by default**. Open **OPTION** and enable
+**VOXEL 3D**, then adjust **3D ANGLE** and **3D ZOOM**. As in Emerald 3DS,
+many towns and routes are modelled while large parts of the map and most
+interiors are still flat; it is a work in progress.
 
 ## Status
 
-What works and what does not yet, compared with Emerald 3DS:
-
 | | Status |
 | :--- | :--- |
-| Game, both screens, touch interface | Working |
-| Voxel overworld and 3D battles | Working |
-| Sound and music | Working |
-| Fast-forward | Working |
-| Day/night lighting | Working |
-| Building the game data in the app | Working, for every language below |
-| English, French, Spanish | Working, tested on the Thor |
-| Italian, German | In the app; tested on the Android emulator, Thor testing pending |
-| Japanese, Brazilian Portuguese | Not ported yet (a Japanese ROM is recognized and reported as not supported) |
-| Follower Pokémon (HeartGold/SoulSilver sprites) | Working: downloaded by the app |
-| Visible wild Pokémon | Working |
-| The PC and other full-screen bottom menus | Working, scaled to the bottom screen |
-| Local wireless play (Bluetooth) | Working: link rooms. Trades, battles and minigames not fully tested |
-| Single-screen devices | Experimental: on-screen controls, the bottom screen as a window (START), the PC and battles as on the GBA. Tested on a Galaxy Z Flip7 only |
-| Stereoscopic 3D | Not applicable (New 3DS only) |
+| Switch full build, NRO and data package | Working |
+| Switch loader and low-address memory | Built and audited; hardware run pending |
+| Video, EGL/GLES3, handheld/dock | Implemented |
+| Audio, audout feeder/resampler | Implemented |
+| Input, touch and ZL/ZR speed | Implemented |
+| HOME, sleep and exit handling | Implemented with libnx applet hooks |
+| Save layout across ARM32/AArch64 | Verified |
+| Overlay layout audit | 13 reviewed findings, 0 not allowed |
+| Local wireless on Switch | Not part of this milestone (stubbed) |
+| Nintendo 3DS build | Working |
+| Android build | Working, with the Android SDK/NDK |
+| First hardware boot | Pending |
 
-Report problems in this repository's issues, with your device, the app
-version and what you were doing. Please do not report problems with this
-port to the Emerald 3DS project.
+The audits and the full build are described in
+[the Switch plan](switch_port/SWITCH_PORT_PLAN.md) and
+[the final audit](switch_port/FINAL_AUDIT_2026-11-25.md).
 
-## About this repository
+## Install
 
-**This repository contains no game content.** It holds the port's own code,
-the tools that build it, and the recipe tooling that lets the app rebuild the
-game data from *your own* cartridge. Nothing derived from the ROM is
-distributed here or in the releases.
+Download the latest `emerald-nx.zip` from the repository's
+[Releases](releases/latest) page (or build it yourself; see
+[Building](#building-from-source)).
 
-| Component | Location | Role |
-| :--- | :--- | :--- |
-| Engine | [pret/pokeemerald](https://github.com/pret/pokeemerald) · [`upstream.lock`](upstream.lock) | The Pokémon Emerald decompilation, pinned to a specific revision. |
-| Port patches | [`patches/pokeemerald/`](patches/pokeemerald) | Emerald 3DS's changes to the engine, plus the Android build's (`0090-android-clang.patch`). |
-| Shared port code | [`3ds_port/`](3ds_port) | Emerald 3DS's game bridge, touch interface and voxel overworld, which the Android build reuses. |
-| Android backend | [`android_port/`](android_port) | Video (OpenGL ES 3), audio (AAudio), input, the two-screen shell, and the in-app data builder. |
-| Data builder | [`builder/`](builder/) | Emerald 3DS's builder; the recipe format the app's builder (`android_port/app/java/.../PackBuilder.java`) follows. |
+1. Unzip the archive at the **root** of the SD card. It contains:
+
+   ```
+   sdmc:/switch/emerald-nx/
+       emerald-nx.nro
+       emerald-game.nro
+       data/
+       README.txt
+       licences/
+   ```
+
+2. On the Switch, open hbmenu and launch `emerald-nx.nro` as a **title
+   takeover**: hold **R** while opening a game, then choose the NRO. Do not
+   start it from the album/applet mode; the loader needs the code-memory
+   syscalls and a process handle.
+
+3. The game writes:
+
+   - `sdmc:/switch/emerald-nx/loader.log` — the loader's image/heap/syscall log.
+   - `sdmc:/switch/emerald-nx/emerald-nx.log` — stdout/stderr of the game.
+   - `sdmc:/switch/emerald-nx/port.log` — the engine's own log.
+   - `sdmc:/switch/emerald-nx/settings.txt` and `*.sav` — settings and saves.
+
+4. If the screen stays black, read `loader.log` first. It reports the low image
+   base, the heap range and any `svcMapProcessCodeMemory` /
+   `svcSetProcessMemoryPermission` failure. Emulators that do not provide the
+   code-memory syscalls are not supported by the loader.
+
+`data/` is generated by the build. It contains no ROM or save file, but it is
+still game content: do not redistribute a package containing it unless you
+have the rights. See [Data and legal](#data-and-legal).
+
+## Controls
+
+| Button | Action |
+| :--- | :--- |
+| A / B / X / Y | The GBA A / B / X / Y buttons, by their printed letters |
+| D-pad / left stick | Move |
+| L / R | GBA L / R |
+| ZL / ZR | Fast-forward; battle speed while in battle |
+| Plus | Start |
+| Minus | Select |
+| Touch screen (handheld) | The bottom-screen panel |
+
+HOME is handled by the system; it is not mapped as a game button. The Switch
+lifecycle pauses the audio feeder while the HOME menu or sleep owns the screen.
 
 ## Building from source
 
+### Nintendo Switch
+
+Requirements:
+
+- devkitPro with **devkitA64**, **libnx**, **switch-tools**, **switch-mesa** and
+  **switch-libdrm_nouveau**.
+- Python 3.13 with Pillow for the data generators.
+- `make`, `zip` and a POSIX shell (devkitPro's MSYS2 shell on Windows).
+
+Build a bootstrapped tree once, then the full package:
+
 ```sh
-python tools/bootstrap.py --make           # pinned upstream + patches + port -> build/upstream
-android_port/tools/build.sh                # the development APK, every language, installed over adb
-android_port/tools/dev_rom.sh ROM.gba      # play a ROM in it (any supported language)
+export DEVKITPRO=/opt/devkitpro
+python tools/bootstrap.py
+bash switch_port/build_switch.sh
 ```
 
-One APK carries every supported cartridge language (English, French,
-Italian, German, Spanish): the app reads the player's ROM, recognizes its
-language and builds that language's game data from it
-([languages](docs/ANDROID-LANGUAGES.md)).
+Outputs:
 
-`build.sh` finds the clean ROMs by SHA-1 in `--roms DIR` (default
-`~/Documents/gba_roms`); `LANGS=en,fr` narrows the languages. It needs the
-Android SDK and NDK (`ANDROID_HOME`, default `~/Android/Sdk`), a Python with
-Pillow in `build/venv`, libclang's Python bindings for the system `python3`
-(the arm64 build's layout check, `android_port/tools/check_overlays.py`) and
-podman (the voxel programs). It reports each step and its time as it goes.
+```
+switch_port/dist/switch/emerald-nx/
+    emerald-nx.nro
+    emerald-game.nro
+    data/
+    README.txt
+    licences/
+switch_port/dist/emerald-nx.zip
+```
 
-The development app (`com.cer0.emerald.dev`, "Emerald Dev") plays the ROMs
-pushed with `dev_rom.sh` and keeps them, rebuilding a language's data by
-itself when a build changes it. The release APK is
-`android_port/tools/build.sh --release`: every language, checked by
-`tools/release_audit.py` against each ROM.
+`build_switch.sh` keeps the generated `romfs/` data from an earlier 3DS or
+Android build and rebuilds only the platform objects, bundles and Switch
+executables. Use `CLEAN_BUILD=1 bash switch_port/build_switch.sh` after a
+foreign-platform build.
 
-The build is 64-bit (`arm64-v8a`). `ANDROID_ABI=armeabi-v7a` still builds
-the 32-bit library, unsupported; build it in a tree of its own, as the two
-share `build/`.
+Optional static audits:
 
-The [development guide](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md)
-and [asset pipeline](docs/ASSET_PIPELINE.md) documents come from Emerald 3DS
-and describe the shared code; the Android-specific parts live in
-`android_port/`.
+```sh
+cd build/upstream/3ds_port
+make -f ../../switch_port/switch.mk check-save-layout
+make -f ../../switch_port/switch.mk check-overlays
+```
+
+The save audit compares the 32-bit ARM and AArch64 layouts of `SaveBlock1`,
+`SaveBlock2` and `PokemonStorage`. The overlay audit reports structures laid
+over GBA-sized storage; the reviewed Switch exceptions are in
+[`switch_port/tools/check_overlays.allow`](switch_port/tools/check_overlays.allow).
+
+### Nintendo 3DS
+
+The original 3DS port is unchanged:
+
+```sh
+export DEVKITPRO=/opt/devkitpro
+python tools/bootstrap.py --make
+cd build/upstream/3ds_port
+make -j8 PYTHON=python3
+```
+
+The result is `emerald3ds.3dsx`. See
+[3ds_port/README.md](3ds_port/README.md) and
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the release/data-pack steps.
+
+### Android
+
+The Android port lives in [`android_port/`](android_port/):
+
+```sh
+python tools/bootstrap.py
+android_port/tools/build.sh                # development APK
+android_port/tools/build.sh --release      # release APK
+```
+
+It needs the Android SDK and NDK, a Python with Pillow, libclang's Python
+bindings for the layout check and the supported ROMs. The original Android
+documentation is kept in
+[README-emerald-android.md](README-emerald-android.md).
+
+## Technical overview
+
+- **Loader.** `switch_port/loader` follows `nx-hbloader`'s NRO load path:
+  the NRO header, `svcMapProcessCodeMemory`, per-segment permissions and a low
+  heap/stack through the homebrew ABI. It uses a page map so RX pages are set
+  before any writable page, and exits the process when the game returns instead
+  of handing aliased code pages back to hbloader.
+- **Video.** The shared `android_video.c` renderer draws the GBA picture and
+  uploads it through EGL/GLES3 from `nwindowGetDefault()`. `SyncWindows`
+  recreates the surface when `appletGetOperationMode()` changes.
+- **Audio.** The shared mixer ring feeds libnx `audout` at 48 kHz through a
+  phase-continuous linear resampler. Released buffers are drained directly.
+- **Input.** `switch_input.c` maps libnx pad and touch to the shared input
+  decoder; the touch is restricted to the bottom-screen panel and followed
+  until release.
+- **Filesystem.** `switch_fs.c` translates the 3DS paths used by the engine:
+  `romfs:/` → `sdmc:/switch/emerald-nx/data/`, the old `sdmc:/3ds/emerald3ds/`
+  → `sdmc:/switch/emerald-nx/`, and legacy Pokeemerald paths to `legacy/`.
+- **Lifecycle.** `switch_lifecycle.c` is the only unit that includes
+  `<switch.h>` beside the libctru-compatible shim; it exposes `appletMainLoop`
+  and focus state without mixing `Result`/`Handle` definitions.
+- **Data.** The engine writes and reads the same script, song and gamedata
+  bundles as 3DS/Android. The Switch build uses `elf32to64.py` for assembled
+  data and the PIE load bias, with all 32-bit absolute addresses confined to
+  `.gamedata`.
+
+More detail is in [switch_port/README.md](switch_port/README.md) and
+[switch_port/SWITCH_PORT_PLAN.md](switch_port/SWITCH_PORT_PLAN.md).
+
+## Repository layout
+
+| Path | Role |
+| :--- | :--- |
+| [`switch_port/`](switch_port/) | Emerald NX loader, Switch host layer, Makefile, package script and audits. |
+| [`3ds_port/`](3ds_port/) | The original Nintendo 3DS backend and game bridge. |
+| [`android_port/`](android_port/) | The Android backend, app shell and in-app data builder. |
+| [`patches/pokeemerald/`](patches/pokeemerald/) | Changes to the pinned upstream decompilation. |
+| [`builder/`](builder/) | The data builder used by the 3DS and Android releases. |
+| [`docs/`](docs/) | Architecture, development, installation and feature documentation. |
+| [`upstream.lock`](upstream.lock) | The pinned pret/pokeemerald revision and tool versions. |
 
 ## Credits
 
-This project is a fork of **[Emerald 3DS](https://github.com/ZallaxDev/emerald-3ds)
-by Zallax and contributors**, and would not exist without it: the touch
-interface, the voxel overworld, the enhancements, the data builder and the
-recipe system are their work. This fork ports it to Android: a new
-Android backend (video, audio, input, two-screen shell), an in-app data
-builder, layouts for the Thor's screens, and Android-only features.
+- **[ZallaxDev](https://github.com/ZallaxDev)** and the Emerald 3DS
+  contributors: the original native 3DS port, engine bridge, touch interface,
+  voxel overworld, data pipeline and documentation. All the 3DS work is theirs.
+- **[Cer0-D](https://github.com/Cer0-D)** and the Emerald Android contributors:
+  the Android backend, GLES renderer, portable platform layer and app builder.
+- **[toniisound](https://github.com/toniisound)**: the Switch ports
+  ([The Oracles Project NX](https://github.com/toniisound/The-Oracles-Project-NX),
+  [oracles-nx](https://github.com/toniisound/oracles-nx),
+  [smbr-nx](https://github.com/toniisound/smbr-nx),
+  [DKC1/2/3Recomp-NX](https://github.com/toniisound/DKC1Recomp-NX)) — NRO
+  packaging, EGL/GLES, audout, input and applet patterns.
+- **[Alexgg1014](https://github.com/Alexgg1014)**: Dusklight's Switch port —
+  low-address code-memory staging, per-range permissions, cache handling and
+  display-mode polling.
+- **[switchbrew](https://github.com/switchbrew)**: `nx-hbloader`, the NRO load
+  path and the homebrew ABI used by the loader.
+- **[devkitPro](https://devkitpro.org)**: devkitARM, devkitA64, libnx,
+  switch-tools, switch-mesa and libdrm_nouveau.
+- **pret/pokeemerald** and contributors: the decompilation pinned in
+  [`upstream.lock`](upstream.lock).
+- **pokeemerald-multiplatform**: the voxel renderer logic reused by the port;
+  see [3ds_port/src/voxel/NOTICE.md](3ds_port/src/voxel/NOTICE.md).
+- The HeartGold/SoulSilver follower sprites and texts come from
+  pret/pokeheartgold and Poké Corpus, fetched by the builder; they are not
+  included in this repository.
 
-The French, Italian and German versions of the app are the work of
-**[@andyst-dev](https://github.com/andyst-dev)** (pull requests #1 to #3).
+The complete third-party inventory and licence texts are in
+[NOTICE.md](NOTICE.md); the release package ships them under `licences/`,
+and its install notes are in
+[`switch_port/PACKAGE_README.txt`](switch_port/PACKAGE_README.txt).
 
-If you enjoy this, consider supporting the original project: follow
-[@DustZallax on X](https://x.com/DustZallax), join the
-[Emerald 3DS Discord](https://discord.com/invite/tfqHF8496P), or
-[buy Zallax a coffee](https://ko-fi.com/zallax).
+## Data and legal
 
-Also built on:
+**This repository contains no ROMs, saves or extracted game data.** The
+engine is the pret/pokeemerald decompilation; Emerald's code, graphics, audio,
+text and characters are the property of Nintendo, Game Freak and Creatures.
+The original port code is licensed under
+[CC BY-NC-SA 4.0](LICENSE-PORT.md); third-party components keep their own
+licences, listed in [NOTICE.md](NOTICE.md).
 
-- **[pret/pokeemerald](https://github.com/pret/pokeemerald)**: the Pokémon
-  Emerald decompilation the game runs on.
-- **[pret/pokeheartgold](https://github.com/pret/pokeheartgold)** and
-  **poke-corpus**: the follower Pokémon's sprites and texts, which the app
-  downloads from pinned forks; they are never distributed with it.
-- **[pokeemerald-multiplatform](https://github.com/gradenGnostic/pokeemerald-multiplatform)**
-  (MIT): the voxel renderer's original logic, adapted by Emerald 3DS
-  (see [`3ds_port/src/voxel/NOTICE.md`](3ds_port/src/voxel/NOTICE.md)).
+A generated `data/` folder or a release package containing it still contains
+game content. Do not redistribute it unless you have the rights. The project
+does not provide ROMs or saves, and does not condone piracy.
 
-## Licence
+## Reporting problems
 
-The original Emerald 3DS code, tools and documentation, and this fork's own
-additions, are licensed under [CC BY-NC-SA 4.0](LICENSE-PORT.md): you may
-fork, change and share them with credit, not for profit, and under the same
-licence. The decompilation, the game and third-party components keep their
-own terms; see [NOTICE.md](NOTICE.md) and [docs/PROVENANCE.md](docs/PROVENANCE.md).
-AI-assisted tooling was used during development: [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+Open an issue on this repository with:
 
-Emerald for Android is an unofficial fan project, not affiliated with or
-endorsed by Nintendo, Game Freak, Creatures, The Pokémon Company or the
-Emerald 3DS project. Pokémon and Pokémon Emerald are trademarks of their
-respective owners.
+- the console model and firmware,
+- whether the app was launched as a title takeover,
+- the newest `loader.log` and `port.log`,
+- the exact steps and the first visible error.
+
+Please report Emerald NX problems here, not to the Emerald 3DS or Android
+projects. The 3DS and Android READMEs are kept for their own platforms.
+
+## Reference ports
+
+| Upstream | Switch port |
+| :--- | :--- |
+| [TwilitRealm/dusklight](https://github.com/TwilitRealm/dusklight) | [Dusklight — Alek's Ultimate NX Edition](https://github.com/Alexgg1014/The-Legend-of-Zelda-Twilight-Princess-Alek-s-Ultimate-NX-Edition) |
+| [thibautbus/top](https://github.com/thibautbus/top) | [The Oracles Project NX](https://github.com/toniisound/The-Oracles-Project-NX) |
+| [kirby-letsgo/oracles-decomp](https://github.com/kirby-letsgo/oracles-decomp) | [oracles-nx](https://github.com/toniisound/oracles-nx) |
+
+The Switch port's structure, release layout and subsystem choices are
+documented against these references in
+[switch_port/SWITCH_PORT_PLAN.md](switch_port/SWITCH_PORT_PLAN.md).
