@@ -12,7 +12,7 @@ shallow clones of smbr-nx and Dusklight (Alexgg1014), and nx-hbloader.
 | Audio | smbr's audout feeder uses `audoutGetReleasedAudioOutBuffer`; the Oracles ports use SDL3 with toniisound's Switch audio patch. | Kept the direct libnx audout feeder (no SDL3 dependency); switched reclaim to `audoutGetReleasedAudioOutBuffer`. The SDL patch is unnecessary for this design and remains documented as the reference if SDL3 is added. |
 | Input/touch | smbr configures `NpadStandard`, initializes the touch screen and reads focus state; Oracles maps printed A/B/X/Y. | The Switch host maps libnx pad/touch to the Android host input surface, with A/B/X/Y by letter, ZL/ZR speed and panel-only touch. HOME is not mapped as a game button. |
 | Dock/handheld | Dusklight polls the applet mode per frame; smbr fixes a size at startup. | Per-frame `appletGetOperationMode()` and surface recreation; no restart. |
-| Home/sleep | smbr runs `while (appletMainLoop())` and checks `appletGetFocusState()`; Oracles handles `WILL_ENTER_BACKGROUND` through SDL. | Added `switch_lifecycle.c`: `appletMainLoop()` every frame, focus-loss pauses audout, focus return resets clocks. HOME/exit leaves the loop cleanly. |
+| Home/sleep | smbr runs `while (appletMainLoop())` and checks `appletGetFocusState()`; Oracles handles `WILL_ENTER_BACKGROUND` through SDL. DKC1Recomp-NX registers an `appletHook` for exit/focus and persists its SRAM there. | Added `switch_lifecycle.c`: `appletHook` records exit/focus, `appletMainLoop()` runs every frame, focus loss pauses audout, focus return resets clocks. Emerald's saves are written synchronously by its own save code, and settings/logs flush in `CtrPlatform_Shutdown`, so no extra SRAM hook is needed. HOME/exit leaves the loop cleanly. |
 
 ## 2. Packaging
 
@@ -71,13 +71,18 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 ## 5. Builds
 
 - Switch: full AArch64 build, NRO, data bundles and package pass. Link check
-  accepts only the expected `R_AARCH64_ABS32` sites in `.gamedata`.
-- 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM.
-- Android: `android_port/` build files are untouched; the two shared files
-  changed (`android_platform.c` lifecycle, `android_video.c` NWindow branch)
-  keep the Android paths behind `#ifdef __SWITCH__`. The shared map/battle
-  units compile in the 3DS/Switch builds; a full Android build needs the NDK,
-  which is not installed here.
+  accepts only the expected `R_AARCH64_ABS32` sites in `.gamedata`. Final
+  build id `6200e76bd97c1306`; package SHA-256
+  `F49792D6F16F05205493A7BF76822B83678534B0D03C962131F1E9FD9A5ED138`.
+- 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM;
+  `emerald3ds.elf` 31,901,540 bytes and `emerald3ds.3dsx` 62,087,788 bytes,
+  rc=0.
+- Android: `android_port/android.mk`, `build_apk.sh` and the JNI/Java sources
+  are untouched; the two shared files changed (`android_platform.c` lifecycle,
+  `android_video.c` NWindow branch) keep the Android paths behind
+  `#ifdef __SWITCH__`. The shared map/battle units compile in the 3DS and
+  Switch builds; a full Android build needs the NDK, which is not installed
+  here.
 
 ## 6. Simplification/performance
 

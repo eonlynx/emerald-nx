@@ -7,12 +7,42 @@
 
 #include "switch_lifecycle.h"
 
+static AppletHookCookie sCookie;
+static volatile bool sInitialized;
+static volatile bool sFocused = true;
+static volatile bool sExitRequested;
+
+static void LifecycleHook(AppletHookType type, void *param)
+{
+    (void)param;
+    if (type == AppletHookType_OnFocusState) {
+        sFocused = appletGetFocusState() == AppletFocusState_InFocus;
+    } else if (type == AppletHookType_OnExitRequest) {
+        sExitRequested = true;
+    }
+}
+
+static void Initialize(void)
+{
+    if (sInitialized) {
+        return;
+    }
+    sFocused = appletGetFocusState() == AppletFocusState_InFocus;
+    appletHook(&sCookie, LifecycleHook, NULL);
+    sInitialized = true;
+}
+
 bool SwitchLifecycle_Frame(void)
 {
-    return appletMainLoop();
+    Initialize();
+    if (!appletMainLoop()) {
+        sExitRequested = true;
+    }
+    return !sExitRequested;
 }
 
 bool SwitchLifecycle_Focused(void)
 {
-    return appletGetFocusState() == AppletFocusState_InFocus;
+    Initialize();
+    return sFocused && appletGetFocusState() == AppletFocusState_InFocus;
 }
