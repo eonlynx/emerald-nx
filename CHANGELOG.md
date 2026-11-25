@@ -24,8 +24,10 @@ in the same tree and keep building.
 - Loader: the game image's instruction cache is invalidated after its RX
   permissions exist, following smbr-nx and Dusklight, instead of while the
   freshly mapped pages are still inaccessible. The loader also logs each
-  mapping step and enters the NRO CRT0 at +0x80 directly, so a failed boot can
-  be located without a debugger.
+  mapping step and enters the NRO CRT0 at +0x80 directly. Before the jump it
+  now closes the services it opened (console, FS, applet, HID, time, setsys
+  and SM) and restores its TLS, as nx-hbloader does, so the NRO's libnx can
+  initialize its own services before `main`.
 - Logging: Switch writes `port.log` synchronously instead of starting a
   newlib writer thread, and startup logs each platform step to
   `emerald-nx.log`. This follows the single-threaded logging in smbr-nx and

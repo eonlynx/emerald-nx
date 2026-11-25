@@ -32,6 +32,7 @@
 #define STACK_SIZE (8ULL * 1024ULL * 1024ULL)
 
 static FILE *g_log;
+static u8 sSavedTls[0x100];
 
 static void log_line(const char *fmt, ...) {
     va_list args;
@@ -274,6 +275,7 @@ int main(int argc, char **argv) {
     (void)argv;
 
     consoleInit(NULL);
+    memcpy(sSavedTls, (u8 *)armGetTls() + 0x100, sizeof(sSavedTls));
     fsdevMountSdmc();
     mkdir("sdmc:/switch", 0777);
     mkdir(APP_DIR, 0777);
@@ -358,14 +360,26 @@ int main(int argc, char **argv) {
 
     log_line("loader: jumping to game (applet %" PRIu64 ", flags %" PRIu64 ", heap %" PRIu64 ")",
              applet_type, applet_flags, game_heap_size);
-    fflush(g_log);
-    consoleUpdate(NULL);
-    /* The game NRO has its own libnx console state. */
-    consoleExit(NULL);
+    if (g_log) {
+        fclose(g_log);
+        g_log = NULL;
+    }
 
-    /* The NRO starts with a branch to its CRT0 at +0x80.  Enter the CRT0
-     * directly: it also works if the first page's branch is not fetched for
-     * any reason. */
+    /* nx-hbloader closes every service it opened and restores its TLS before
+     * handing control to the NRO, so the NRO's libnx sees a clean process:
+     * __appInit opens SM, applet, HID, time and FS itself.  Leaving the
+     * loader's sessions open made the NRO abort before main. */
+    consoleExit(NULL);
+    fsdevUnmountAll();
+    fsExit();
+    appletExit();
+    hidExit();
+    timeExit();
+    setsysExit();
+    smExit();
+    memcpy((u8 *)armGetTls() + 0x100, sSavedTls, sizeof(sSavedTls));
+
+    /* The NRO starts with a branch to its CRT0 at +0x80. */
     switch_jump_to_nro(entries, (char *)game_base + 0x80, stack_top, process);
     fail("loader: game returned unexpectedly");
     return 0;
