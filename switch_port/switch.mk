@@ -124,6 +124,7 @@ build/%.o: src/%.c $(wildcard $(SWITCH_PORT)/include/*.h) $(wildcard $(ANDROID_P
 SWITCH_SRCS := \
 	$(SWITCH_PORT)/src/switch_main.c \
 	$(SWITCH_PORT)/src/switch_arm.c \
+	$(SWITCH_PORT)/src/switch_lifecycle.c \
 	$(SWITCH_PORT)/src/switch_host.c \
 	$(SWITCH_PORT)/src/switch_audio.c \
 	$(SWITCH_PORT)/src/switch_input.c \
@@ -208,8 +209,8 @@ build/$(TARGET).map: $(TARGET).elf ;
 $(TARGET).nacp: Makefile
 	$(DEVKITPRO)/tools/bin/nacptool --create "$(APP_TITLE)" "$(APP_AUTHOR)" "$(APP_VERSION)" $@
 
-$(GAME_NRO): $(TARGET).elf $(TARGET).nacp $(DEVKITPRO)/libnx/default_icon.jpg
-	$(DEVKITPRO)/tools/bin/elf2nro $< $@ --icon=$(DEVKITPRO)/libnx/default_icon.jpg --nacp=$(TARGET).nacp
+$(GAME_NRO): $(TARGET).elf $(TARGET).nacp $(SWITCH_PORT)/icon.jpg
+	$(DEVKITPRO)/tools/bin/elf2nro $< $@ --icon=$(SWITCH_PORT)/icon.jpg --nacp=$(TARGET).nacp
 
 # Data staging: engine files and game data both live under data/ on the SD
 # card and are read through the romfs:/ path wrapper.

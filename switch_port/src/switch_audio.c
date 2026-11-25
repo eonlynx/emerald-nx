@@ -50,13 +50,20 @@ static CtrAudioStats sStats;
 CtrAudioStats *CtrAudio_Stats(void) { return &sStats; }
 
 static void reclaim(void) {
-    for (int i = 0; i < BUFFERS; ++i) {
-        bool contains = false;
-        if (!sOut[i].busy) {
-            continue;
+    for (;;) {
+        AudioOutBuffer *released = NULL;
+        u32 count = 0;
+        if (R_FAILED(audoutGetReleasedAudioOutBuffer(&released, &count)) || released == NULL) {
+            break;
         }
-        if (R_FAILED(audoutContainsAudioOutBuffer(&sOut[i].buffer, &contains)) || !contains) {
-            sOut[i].busy = false;
+        for (int i = 0; i < BUFFERS; ++i) {
+            if (&sOut[i].buffer == released) {
+                sOut[i].busy = false;
+                break;
+            }
+        }
+        if (count <= 1) {
+            break;
         }
     }
 }

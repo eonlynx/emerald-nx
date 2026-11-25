@@ -21,6 +21,12 @@ and jumps to its entrypoint. The game image, its C heap, its thread stacks and
 the newlib heap all stay below 4 GiB so the engine's 32-bit address fields keep
 working.
 
+The game services `appletMainLoop()` every frame: HOME/exit requests stop the
+loop cleanly, focus loss (HOME, a library applet or console sleep) pauses the
+audout feeder, and returning resets the frame clocks. The video backend checks
+`appletGetOperationMode()` every frame, so handheld 1280x720 and docked
+1920x1080 recreate the EGL surface without restarting the game.
+
 Hardware testing is still the last step: the build and the static layout
 audits complete on the host, but no console has run the final package yet.
 

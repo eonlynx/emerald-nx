@@ -18,8 +18,7 @@ uint64_t armGetSystemTick(void) {
 /* devkitA64's newlib does not export posix_memalign; the GLES pool allocator
  * in android_c3d.c uses it.  Keep the same alignment and error contract. */
 int posix_memalign(void **memptr, size_t alignment, size_t size) {
-    if (memptr == NULL || alignment < sizeof(void *) ||
-        (alignment & (alignment - 1)) != 0) {
+    if (alignment < sizeof(void *) || (alignment & (alignment - 1)) != 0) {
         return EINVAL;
     }
     void *ptr = memalign(alignment, size);

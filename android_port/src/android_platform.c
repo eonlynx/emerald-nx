@@ -21,6 +21,9 @@
 #include "3ds_assets.h"
 #include "3ds_local.h"
 #include "3ds_bottom.h"
+#ifdef __SWITCH__
+#include "switch_lifecycle.h"
+#endif
 
 static CtrPlatformHooks sHooks;
 static bool sInitialized, sExit, sWaiting;
@@ -218,6 +221,38 @@ static void HandlePause(void)
 bool CtrPlatform_BeginFrame(void)
 {
     HandlePause();
+#ifdef __SWITCH__
+    /* HOME, sleep and exit are applet messages; the game loop must service
+     * them even though it is not an SDL application.  While the HOME menu or
+     * console sleep owns the screen, stop feeding audout and wait here so the
+     * game's clocks do not accumulate a huge catch-up later. */
+    if (!SwitchLifecycle_Frame())
+    {
+        sExit = true;
+        return false;
+    }
+    if (!SwitchLifecycle_Focused())
+    {
+        AndroidAudio_SetPaused(true);
+        while (!sExit && !SwitchLifecycle_Focused())
+        {
+            svcSleepThread(16000000ULL);
+            if (!SwitchLifecycle_Frame())
+            {
+                sExit = true;
+                break;
+            }
+        }
+        AndroidAudio_SetPaused(false);
+        if (sExit)
+            return false;
+        CtrInput_Clear();
+        CtrDayNight_Resume();
+        CtrBottom_OnResume();
+        sLastFrame = CtrPlatform_Milliseconds();
+        sLastTick = sExitStart = 0;
+    }
+#endif
     if (sExit)
         return false;
     sWorkStart = svcGetSystemTick();
