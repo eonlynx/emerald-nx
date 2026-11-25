@@ -138,46 +138,50 @@ static void *load_nro_file(const char *path, size_t *out_total, NroHeader *out_h
         fail("loader: cannot seek %s", path);
     }
     const long file_size = ftell(file);
+    NroStart start;
+    NroHeader header;
     if (file_size < (long)(sizeof(NroStart) + sizeof(NroHeader))) {
         fclose(file);
         fail("loader: %s is too small", path);
     }
     rewind(file);
+    if (fread(&start, 1, sizeof(start), file) != sizeof(start) ||
+        fread(&header, 1, sizeof(header), file) != sizeof(header)) {
+        fclose(file);
+        fail("loader: short read on %s header", path);
+    }
+    (void)start;
+    if (header.magic != NROHEADER_MAGIC) {
+        fclose(file);
+        fail("loader: %s is not an NRO (magic 0x%08x)", path, header.magic);
+    }
+    if (header.size < sizeof(NroStart) + sizeof(NroHeader) ||
+        (size_t)file_size < (size_t)header.size) {
+        fclose(file);
+        fail("loader: %s is truncated (image %u, file %ld)", path, header.size, file_size);
+    }
 
-    size_t capacity = (size_t)align_up((uint64_t)file_size, PAGE);
-    void *buffer = aligned_alloc(PAGE, capacity);
+    /* Only header.size bytes belong to the image; the icon/NACP and any other
+     * NRO assets follow it and must not end up in the bss area. */
+    const size_t total = (size_t)align_up((uint64_t)header.size + header.bss_size, PAGE);
+    void *buffer = aligned_alloc(PAGE, total);
     if (!buffer) {
         fclose(file);
         fail("loader: out of memory for %s", path);
     }
-    memset(buffer, 0, capacity);
-    if (fread(buffer, 1, (size_t)file_size, file) != (size_t)file_size) {
+    memset(buffer, 0, total);
+    rewind(file);
+    if (fread(buffer, 1, (size_t)header.size, file) != (size_t)header.size) {
+        free(buffer);
         fclose(file);
         fail("loader: short read on %s", path);
     }
     fclose(file);
 
-    const NroHeader *header = (const NroHeader *)((const char *)buffer + sizeof(NroStart));
-    if (header->magic != NROHEADER_MAGIC) {
-        fail("loader: %s is not an NRO (magic 0x%08x)", path, header->magic);
-    }
-    const size_t total = (size_t)align_up((uint64_t)header->size + header->bss_size, PAGE);
-    if (total > capacity) {
-        void *larger = aligned_alloc(PAGE, total);
-        if (!larger) {
-            fail("loader: out of memory for %s bss", path);
-        }
-        memset(larger, 0, total);
-        memcpy(larger, buffer, (size_t)file_size);
-        free(buffer);
-        buffer = larger;
-        capacity = total;
-    }
-    (void)capacity;
     *out_total = total;
-    *out_header = *header;
-    log_line("loader: %s: file %ld, image %" PRIu64 ", bss %u, total %" PRIu64,
-             path, file_size, (uint64_t)header->size, header->bss_size, (uint64_t)total);
+    *out_header = header;
+    log_line("loader: %s: file %ld, image %u, bss %u, total %" PRIu64,
+             path, file_size, header.size, header.bss_size, (uint64_t)total);
     return buffer;
 }
 
@@ -189,24 +193,75 @@ void switch_after_game(void) {
     svcExitProcess();
 }
 
-static void set_nro_permissions(Handle process, void *base, const NroHeader *header) {
-    const uint64_t text = (uint64_t)(uintptr_t)base + header->segments[0].file_off;
-    const uint64_t rodata = (uint64_t)(uintptr_t)base + header->segments[1].file_off;
-    const uint64_t data = (uint64_t)(uintptr_t)base + header->segments[2].file_off;
+/*
+ * NRO segment permissions, following smbr-nx's so_util: the kernel never
+ * allows a W -> X transition on code memory, so set every executable page RX
+ * first, straight from the freshly mapped state, then every other page RW.
+ * A page map (rather than three independent ranges) also covers the padding
+ * between segments and a segment that shares a page with the next one.
+ */
+enum { PAGE_RW = 0, PAGE_RX = 1, PAGE_R = 2 };
+
+static void mark_pages(uint8_t *kind, size_t num_pages, uint64_t offset, uint64_t size,
+                       uint8_t value) {
+    const uint64_t first = offset / PAGE;
+    const uint64_t last = (offset + size + PAGE - 1) / PAGE;
+    for (uint64_t pg = first; pg < last && pg < num_pages; ++pg) {
+        if (kind[pg] == PAGE_RX) {
+            continue; /* an executable page wins a shared boundary */
+        }
+        kind[pg] = value;
+    }
+}
+
+static void set_nro_permissions(Handle process, void *base, const NroHeader *header,
+                                size_t image_size) {
+    const size_t num_pages = image_size / PAGE;
+    uint8_t *kind = calloc(num_pages, 1);
+    if (!kind) {
+        fail("loader: out of memory for the page map");
+    }
+
+    mark_pages(kind, num_pages, header->segments[0].file_off, header->segments[0].size, PAGE_RX);
+    mark_pages(kind, num_pages, header->segments[1].file_off, header->segments[1].size, PAGE_R);
+    mark_pages(kind, num_pages, header->segments[2].file_off,
+               (uint64_t)header->segments[2].size + header->bss_size, PAGE_RW);
+    /* Alignment gaps stay PAGE_RW (0) as well. */
+
+    /* The kernel forbids W -> X: set RX first, then the read-only pages, then
+     * the writable remainder.  Every page is set exactly once, so a segment
+     * that shares a page with the next one cannot undo an earlier permission. */
+    for (int pass = 0; pass < 3; ++pass) {
+        const uint8_t want = pass == 0 ? PAGE_RX : pass == 1 ? PAGE_R : PAGE_RW;
+        const u32 perm = want == PAGE_RX ? Perm_Rx : want == PAGE_R ? Perm_R : Perm_Rw;
+        size_t pg = 0;
+        while (pg < num_pages) {
+            if (kind[pg] != want) {
+                ++pg;
+                continue;
+            }
+            size_t end = pg;
+            while (end < num_pages && kind[end] == want) {
+                ++end;
+            }
+            const uint64_t addr = (uint64_t)(uintptr_t)base + (uint64_t)pg * PAGE;
+            const uint64_t size = (uint64_t)(end - pg) * PAGE;
+            const Result rc = svcSetProcessMemoryPermission(process, addr, size, perm);
+            if (R_FAILED(rc)) {
+                fail("loader: %s permission at %" PRIu64 " (0x%08x)",
+                     want == PAGE_RX ? "RX" : want == PAGE_R ? "R" : "RW", addr, rc);
+            }
+            pg = end;
+        }
+    }
+    free(kind);
+
     const uint64_t text_size = align_up(header->segments[0].size, PAGE);
-    const uint64_t rodata_size = align_up(header->segments[1].size, PAGE);
-    const uint64_t data_size = align_up((uint64_t)header->segments[2].size + header->bss_size, PAGE);
-
-    Result rc = svcSetProcessMemoryPermission(process, text, text_size, Perm_R | Perm_X);
-    if (R_FAILED(rc)) fail("loader: text permission failed: 0x%08x", rc);
-    rc = svcSetProcessMemoryPermission(process, rodata, rodata_size, Perm_R);
-    if (R_FAILED(rc)) fail("loader: rodata permission failed: 0x%08x", rc);
-    rc = svcSetProcessMemoryPermission(process, data, data_size, Perm_Rw);
-    if (R_FAILED(rc)) fail("loader: data permission failed: 0x%08x", rc);
-    armICacheInvalidate((void *)(uintptr_t)text, text_size);
-
-    log_line("loader: segments text %" PRIu64 " rodata %" PRIu64 " data %" PRIu64,
-             text_size, rodata_size, data_size);
+    armICacheInvalidate((void *)(uintptr_t)((uint64_t)(uintptr_t)base + header->segments[0].file_off),
+                        text_size);
+    log_line("loader: image %" PRIu64 " pages, text %" PRIu64 ", rodata %" PRIu64,
+             (uint64_t)num_pages, text_size,
+             align_up(header->segments[1].size, PAGE));
 }
 
 int main(int argc, char **argv) {
@@ -214,9 +269,9 @@ int main(int argc, char **argv) {
     (void)argv;
 
     consoleInit(NULL);
+    fsdevMountSdmc();
     mkdir("sdmc:/switch", 0777);
     mkdir(APP_DIR, 0777);
-    fsdevMountSdmc();
     g_log = fopen(LOADER_LOG, "w");
     if (g_log) {
         setvbuf(g_log, NULL, _IOLBF, 0);
@@ -230,6 +285,10 @@ int main(int argc, char **argv) {
     if (process == INVALID_HANDLE) {
         fail("loader: no own-process handle; launch as a title takeover from hbmenu");
     }
+    if (!envIsSyscallHinted(0x77) || !envIsSyscallHinted(0x73)) {
+        fail("loader: the launcher does not permit svcMapProcessCodeMemory/"
+             "svcSetProcessMemoryPermission; launch as a title takeover");
+    }
 
     size_t image_size = 0;
     NroHeader header;
@@ -238,7 +297,7 @@ int main(int argc, char **argv) {
      * W -> X transition on code memory.  Set text RX/rodata R/data RW
      * directly, as hbloader does. */
     void *game_base = map_low(process, image, image_size, 0, false, "game image");
-    set_nro_permissions(process, game_base, &header);
+    set_nro_permissions(process, game_base, &header, image_size);
 
     void *heap_source = aligned_alloc(PAGE, (size_t)HEAP_SIZE);
     if (!heap_source) {
