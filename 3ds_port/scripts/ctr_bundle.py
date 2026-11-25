@@ -48,12 +48,20 @@ def tool(name: str) -> str:
 
 
 def elf_tool(name: str) -> str:
-    """A tool for the linked executable or library: the NDK's LLVM one when
-    the Android build names it (CTR_LLVM_BIN) - binutils for ARM cannot read
-    an arm64 library - devkitARM's otherwise."""
+    """A tool for the linked executable or library: the LLVM-compatible one
+    when the build names it (CTR_LLVM_BIN) - binutils for ARM cannot read an
+    arm64 image - devkitARM's otherwise."""
     llvm = os.environ.get("CTR_LLVM_BIN")
     if llvm:
-        return str(Path(llvm) / ("llvm-" + name))
+        # MSYS2 passes /c/... to make; Windows Python needs C:/...
+        raw = str(llvm)
+        if os.name == "nt" and re.match(r"^/[A-Za-z]/", raw):
+            raw = raw[1].upper() + ":" + raw[2:]
+        base = Path(raw)
+        for candidate in (base / ("llvm-" + name), base / ("llvm-" + name + ".exe")):
+            if candidate.exists():
+                return str(candidate)
+        return str(base / ("llvm-" + name + (".exe" if os.name == "nt" else "")))
     return tool("arm-none-eabi-" + name)
 
 

@@ -28,7 +28,7 @@
  * those addresses; a shared library (Android) is loaded somewhere else as a
  * whole, so a pointer is first taken back by its load bias: the run-time
  * address of the ELF header, which the link put at 0. */
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_SWITCH)
 extern const char __ehdr_start[];
 static inline u32 LinkAddr(const void *ptr)
 {

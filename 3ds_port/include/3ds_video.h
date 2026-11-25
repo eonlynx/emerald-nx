@@ -15,7 +15,7 @@ bool CtrVideo_TryVoxelAnimUpload(void);
 void CtrVideo_CopiesBegin(void);
 void CtrVideo_CopiesEnd(void);
 
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_SWITCH)
 /* gba/defines.h DISPLAY_WIDTH: chosen at launch from the top display's shape
  * (AndroidVideo_ChooseWidth), a whole number of tiles in [MIN, MAX]. */
 extern unsigned short gDisplayWidth;

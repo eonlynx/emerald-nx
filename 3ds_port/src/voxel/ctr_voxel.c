@@ -140,7 +140,7 @@ typedef struct
  */
 /* On Android each card may also take its depth (3D SPRITES, voxel_entities.c):
  * a pixel-deep board's outline, a few hundred vertices for a walker. */
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_SWITCH)
 #define VOXEL_SPRITE_RESERVE (VOXEL_SPRITE_SLOTS * (6u + 1200u) + 32u)
 #else
 #define VOXEL_SPRITE_RESERVE (VOXEL_SPRITE_SLOTS * 6u + 32u)

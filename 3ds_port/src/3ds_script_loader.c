@@ -172,7 +172,7 @@ static bool LoadBundle(const char *what, const char *payloadPath, const char *re
     /* Everything the bundle knows about the executable was recorded at link
      * time; one symbol is enough to learn where the image actually landed. */
     delta = (uintptr_t)AgbMain - header.referenceAddress;
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID) || defined(PLATFORM_SWITCH)
     /* A shared library moves as a whole: AgbMain lands exactly the load bias
      * from where the link put it. Anything else is data from another link,
      * which would relocate every pointer to the wrong place. */
