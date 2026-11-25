@@ -466,6 +466,22 @@ switch_port/
   `devkitPro/SDL` branch `switch-sdl-3.4` (pinned commit) or the matching
   package.
 
+### 3.2.1 Build result (2026-11-25)
+
+`make -f switch_port/switch.mk all` completes: the AArch64 game ELF, the NRO,
+the asset index, script and song bundles, the gamedata bundle, the engine ABI
+and the build id are produced.  GNU ld reports only `R_AARCH64_ABS32` sites in
+`.gamedata` (expected: those are the 4-byte pointers the bundle loader
+relocates); the recipe's link check rejects any other diagnostic.
+
+The save-layout audit passes (SaveBlock1 0x3D88, SaveBlock2 0xF2C,
+PokemonStorage 0x83D0, identical member offsets on arm32 and aarch64).  The
+overlay audit reports 13 known drifts, all reviewed and listed in
+`tools/check_overlays.allow`: four RFU structures (local wireless is stubbed on
+Switch) and nine `MemBlock` uses (the game's allocator computes every offset
+from `sizeof(struct MemBlock)`, so it remains valid with the larger 64-bit
+header).
+
 ### 3.3 Video and single screen
 
 - EGL over `nwindowGetDefault()` (like `smbr-nx`/TP), not necessarily SDL
