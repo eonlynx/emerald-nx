@@ -54,9 +54,9 @@ cp "$ROOT/switch_port/loader/emerald-nx.nro" "$APP/emerald-nx.nro"
 cp "$TREE/emerald-game.nro" "$APP/emerald-game.nro"
 cp -a "$TREE/romfs/." "$APP/data/"
 cp "$ROOT/switch_port/PACKAGE_README.txt" "$APP/README.txt"
-mkdir -p "$APP/licenses"
-cp "$ROOT/LICENSE-PORT.md" "$APP/licenses/LICENSE-PORT.txt"
-cp "$ROOT/NOTICE.md" "$APP/licenses/NOTICE.txt"
+mkdir -p "$APP/licences"
+cp "$ROOT/LICENSE-PORT.md" "$APP/licences/LICENSE-PORT.txt"
+cp "$ROOT/NOTICE.md" "$APP/licences/NOTICE.txt"
 
 ( cd "$DIST" && rm -f emerald-nx.zip && zip -qr emerald-nx.zip switch )
 
@@ -64,3 +64,4 @@ echo
 echo "Done: $DIST/switch/emerald-nx/"
 echo "Zip:  $ROOT/switch_port/dist/emerald-nx.zip"
 echo "Copy the zip's switch/ folder to the SD card root."
+

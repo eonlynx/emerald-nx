@@ -52,7 +52,7 @@ switch_port/dist/switch/emerald-nx/
     emerald-game.nro    the real Emerald engine
     data/               engine and game data
     README.txt
-    licenses/
+    licences/
 switch_port/dist/emerald-nx.zip
 ```
 
@@ -158,3 +158,4 @@ Checklist:
 
 No ROMs, saves, extracted assets or other protected content belong in this
 repository.
+

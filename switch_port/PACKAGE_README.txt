@@ -1,4 +1,4 @@
-# Emerald NX — package
+# Emerald NX â€” package
 
 Copy this folder to the SD card as:
 
@@ -12,15 +12,15 @@ the album/applet mode.
 
 ## Files
 
-- `emerald-nx.nro` — low-address loader. It reads `emerald-game.nro`, maps it
+- `emerald-nx.nro` â€” low-address loader. It reads `emerald-game.nro`, maps it
   below 4 GiB, and starts it.
-- `emerald-game.nro` — the real Emerald engine for Switch.
-- `data/` — engine and game data, read through the `romfs:/` path mapping.
-- `licenses/` — the port's licence and the third-party notices.
-- `loader.log` — written by the loader (created on first run).
-- `emerald-nx.log` — stdout/stderr of the game.
-- `port.log` — the engine's own log (created on first run).
-- `settings.txt`, `*.sav` — created beside the NRO.
+- `emerald-game.nro` â€” the real Emerald engine for Switch.
+- `data/` â€” engine and game data, read through the `romfs:/` path mapping.
+- `licences/` â€” the port's licence and the third-party notices.
+- `loader.log` â€” written by the loader (created on first run).
+- `emerald-nx.log` â€” stdout/stderr of the game.
+- `port.log` â€” the engine's own log (created on first run).
+- `settings.txt`, `*.sav` â€” created beside the NRO.
 
 ## Controls
 
@@ -47,3 +47,4 @@ address, the heap range, and any `svcMapProcessCodeMemory` /
 `svcSetProcessMemoryPermission` failure. The port must be launched as a title
 takeover; emulators that do not provide the code-memory syscalls are not
 supported by the loader.
+

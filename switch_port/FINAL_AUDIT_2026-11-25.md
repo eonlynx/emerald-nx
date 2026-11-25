@@ -24,7 +24,7 @@ switch/emerald-nx/
     emerald-game.nro
     data/
     README.txt
-    licenses/
+    licences/
 ```
 
 `build_switch.sh` builds the loader, the game and the staged data, then writes
@@ -72,8 +72,8 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 
 - Switch: full AArch64 build, NRO, data bundles and package pass. Link check
   accepts only the expected `R_AARCH64_ABS32` sites in `.gamedata`. Final
-  build id `6200e76bd97c1306`; package SHA-256
-  `F49792D6F16F05205493A7BF76822B83678534B0D03C962131F1E9FD9A5ED138`.
+  build id `ac68ac2c0e6ccbff`; package SHA-256
+  `A51947B218BD45F940A092D1050118ECFAFF0114C2F2C8FEA0E1A7EA47839755`.
 - 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM;
   `emerald3ds.elf` 31,901,540 bytes and `emerald3ds.3dsx` 62,087,788 bytes,
   rc=0.
@@ -94,3 +94,5 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
   bias.
 - Frame clocks reset on focus return; dock changes recreate only the EGL
   surface.
+
+
