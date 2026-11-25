@@ -5012,7 +5012,7 @@ def _room_proof(lid):
 def _proofs(func, items, jobs):
     """func over items, in `jobs` forked processes (1: here), the results in
     the items' order."""
-    if jobs <= 1 or len(items) <= 1:
+    if jobs <= 1 or len(items) <= 1 or os.name == "nt":
         return map(func, items)
     import multiprocessing
     # what is printed so far out first: a worker forked with it still
