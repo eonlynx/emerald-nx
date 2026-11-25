@@ -34,6 +34,12 @@ A file inside the pack opens as an ordinary `FILE*` (`fopencookie`), so every
 reader only changed the call that opens it. Pack reads share one SD handle
 under a lock and are safe from the voxel worker thread.
 
+Emerald NX uses the same pack: `switch_port/switch.mk` builds with
+`DATA_BACKEND=3`, `switch_fs.c` maps `sdmc:/3ds/emerald3ds/` to
+`sdmc:/switch/emerald-nx/`, and the release places `emerald3ds.pak` beside
+the NRO. Its `data/` folder keeps only the 15 engine files above, so an SD
+install copies one pack instead of 6,400 small files.
+
 ## Engine ABI
 
 `romfs:/engine/abi.bin` holds a CRC-32 over the path, size and CRC of every

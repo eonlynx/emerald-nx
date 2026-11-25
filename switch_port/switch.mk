@@ -32,7 +32,9 @@ VOXEL_LIGHTING ?= 1
 SHOW_FPS ?= 1
 PORT_LANG ?= en
 CTR_LANG_PT_BR := $(if $(filter pt_br,$(PORT_LANG)),1,0)
-DATA_BACKEND ?= 1
+# 3 = one build/emerald3ds.pak read by the engine; 1 = loose romfs data, for
+# development.  The SD package copies only the small engine files beside it.
+DATA_BACKEND ?= 3
 
 # The bundle/asset scripts read the AArch64 executable with LLVM-compatible
 # tool names; these are copies of devkitA64's readelf/nm/objcopy.
@@ -212,8 +214,8 @@ $(TARGET).nacp: Makefile
 $(GAME_NRO): $(TARGET).elf $(TARGET).nacp $(SWITCH_PORT)/icon.jpg
 	$(DEVKITPRO)/tools/bin/elf2nro $< $@ --icon=$(SWITCH_PORT)/icon.jpg --nacp=$(TARGET).nacp
 
-# Data staging: engine files and game data both live under data/ on the SD
-# card and are read through the romfs:/ path wrapper.
+# Data staging: engine files stay under data/ and are read through the
+# romfs:/ path wrapper; game data is packed into emerald3ds.pak.
 ROMFS_SWITCH := $(ROMFS_ASSET_OUTS) $(ROMFS_MAP_OUT) $(ROMFS_SCRIPT_OUTS) $(ROMFS_SOUND_OUTS) \
 	romfs/bottom/battle.bin romfs/bottom/menu.bin romfs/battle/hud.bin romfs/stage/leaves.bin \
 	$(ROMFS_SHADER_OUTS) $(ROMFS_GAMEDATA_OUTS)
@@ -228,7 +230,15 @@ romfs/engine/abi.bin: $(ROMFS_SWITCH) $(SCRIPTS)/staging.py
 romfs/engine/build_id.bin: $(TARGET).elf romfs/engine/abi.bin scripts/gen_build_id.py
 	"$(PYTHON)" scripts/gen_build_id.py $(TARGET).elf romfs/engine/abi.bin $@
 
-.PHONY: all romfs-data clean check-save-layout check-overlays
+# One data pack instead of 6,400 files.  The pack format and the index are
+# shared with the 3DS build; staging.py excludes the engine files (ABI,
+# asset index, relocation tables, port art) that the engine opens directly.
+PAK := build/emerald3ds.pak
+$(PAK): $(ROMFS_SWITCH) romfs/engine/abi.bin $(SCRIPTS)/staging.py
+	"$(PYTHON)" $(SCRIPTS)/staging.py pak --romfs romfs --out $@ \
+		--game-config $(ROOT)/include/constants/global.h
+
+.PHONY: all romfs-data pak clean check-save-layout check-overlays
 all: $(GAME_NRO) romfs-data
 
 # Layout audits, run by hand (the overlay check preprocesses every game unit
@@ -243,7 +253,10 @@ check-save-layout:
 check-overlays:
 	"$(PYTHON)" $(SWITCH_PORT)/tools/check_overlays_switch.py --jobs 1 \
 		. "$(SWITCH_PORT)/switch.mk" build/overlays_switch.ok
-romfs-data: $(ROMFS_SWITCH) romfs/engine/abi.bin romfs/engine/build_id.bin romfs/data.embedded
+romfs-data: $(ROMFS_SWITCH) romfs/engine/abi.bin romfs/engine/build_id.bin \
+	$(if $(filter 3,$(DATA_BACKEND)),$(PAK),romfs/data.embedded)
+
+pak: $(PAK)
 
 clean:
 	rm -rf build $(TARGET).elf $(GAME_NRO) $(TARGET).nacp $(TARGET).map romfs

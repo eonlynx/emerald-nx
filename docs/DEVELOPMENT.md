@@ -84,14 +84,15 @@ bash switch_port/build_switch.sh                # loader + game + data + zip
 ```
 
 The script builds `switch_port/loader/emerald-nx.nro`, the game NRO with
-`switch_port/switch.mk`, keeps the generated `romfs/` data from an earlier
-3DS build, and writes:
+`switch_port/switch.mk`, packs the generated game data with `staging.py pak`,
+and writes:
 
 ```
 switch_port/dist/switch/emerald-nx/
     emerald-nx.nro
     emerald-game.nro
-    data/
+    emerald3ds.pak      all game data in one file
+    data/               small engine files read directly
     README.txt
     licences/
 switch_port/dist/emerald-nx.zip
@@ -99,14 +100,15 @@ switch_port/dist/emerald-nx.zip
 
 `CLEAN_BUILD=1 bash switch_port/build_switch.sh` removes the object directory
 first; use it after switching from the 3DS build if anything looks stale.
-`JOBS=N` and `PYTHON=...` override the defaults, and `TREE=...` points at a
-different bootstrapped tree.
+`DATA_BACKEND=1` keeps the old loose `data/` tree for development; the release
+default is `DATA_BACKEND=3`, the single pack. `JOBS=N` and `PYTHON=...`
+override the defaults, and `TREE=...` points at a different bootstrapped tree.
 
 Static audits, run from `build/upstream/3ds_port`:
 
 ```sh
-make -f ../../switch_port/switch.mk check-save-layout
-make -f ../../switch_port/switch.mk check-overlays
+make -f ../../../switch_port/switch.mk check-save-layout
+make -f ../../../switch_port/switch.mk check-overlays
 ```
 
 The save check compares the 32-bit ARM and AArch64 layouts of `SaveBlock1`,

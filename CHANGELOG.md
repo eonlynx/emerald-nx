@@ -25,8 +25,11 @@ in the same tree and keep building.
   can show progressive visited-town markers or the classic display.
   Cherry-picked from Proginji2000's branches; no story or event changes.
 - Packaging: `switch_port/build_switch.sh` writes an SD-ready
-  `switch_port/dist/emerald-nx.zip` with `switch/emerald-nx/`, `data/`,
-  `README.txt` and `licences/`, plus a 256x256 project icon.
+  `switch_port/dist/emerald-nx.zip` with `switch/emerald-nx/`,
+  `emerald3ds.pak`, the small engine `data/` set, `README.txt` and
+  `licences/`, plus a 256x256 project icon. The pack replaces the former
+  6,400-file `data/` tree with one engine-readable file, so copying the port
+  to an SD card no longer means copying thousands of small files.
 - Audits: the SaveBlock1/SaveBlock2/PokemonStorage layouts match between
   ARM32 and AArch64; the overlay audit reports 13 reviewed findings and none
   that are not allowed.

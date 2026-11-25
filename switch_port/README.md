@@ -12,8 +12,9 @@ The port now builds the complete two-stage game, not only the loader spike:
   `3ds_port/full.mk` with the Switch backend in `src/` and
   `android_port/src/` (EGL/GLES3 video, audout audio, libnx input,
   `sdmc:/switch/emerald-nx/` filesystem wrappers).
-- `romfs/` is staged as `data/` beside the two NROs; no protected data is kept
-  in the repository.
+- `romfs/` is packed as `emerald3ds.pak` beside the two NROs, with only the
+  small engine files under `data/`; no protected data is kept in the
+  repository.
 
 The loader maps the game NRO below 4 GiB with
 `svcMapProcessCodeMemory`, gives it a low heap/stack through the homebrew ABI,
@@ -50,13 +51,16 @@ Outputs:
 switch_port/dist/switch/emerald-nx/
     emerald-nx.nro      the low-address loader
     emerald-game.nro    the real Emerald engine
-    data/               engine and game data
+    emerald3ds.pak      all game data in one pack (6,425 entries)
+    data/               small engine files read directly (15 files)
     README.txt
     licences/
 switch_port/dist/emerald-nx.zip
 ```
 
-`build_switch.sh` preserves the generated `romfs/` data from an earlier
+`build_switch.sh` builds the engine files and then packs the 6,425 game data
+files into `emerald3ds.pak` with `staging.py`; the SD copy no longer mirrors
+6,400 loose files. It preserves the generated `romfs/` data from an earlier
 3DS/Android build and rebuilds only the platform objects, bundles and the
 Switch executables. To rebuild from an empty object directory:
 
@@ -71,8 +75,8 @@ is generated output and must not be committed.
 Static layout audits (run from the bootstrapped tree's `3ds_port/`):
 
 ```sh
-make -f ../../switch_port/switch.mk check-save-layout
-make -f ../../switch_port/switch.mk check-overlays
+make -f ../../../switch_port/switch.mk check-save-layout
+make -f ../../../switch_port/switch.mk check-overlays
 ```
 
 The save check compares devkitARM's 32-bit layout with devkitA64's for
@@ -142,7 +146,7 @@ Checklist:
       `switch_gamepad.c`; letter mapping, ZL/ZR, touch, HOME exclusion. Used
       libnx pad/touch with letter-based A/B/X/Y and panel-only touch.
 - [x] Filesystem: Oracles `sdmc:/switch/...`, oracles-nx ROM installer, TP
-      startup/FS layer; `data/` external, saves/logs. Kept path wrappers
+      startup/FS layer; `emerald3ds.pak` and `data/` external, saves/logs. Kept path wrappers
       because Emerald hardcodes 3DS paths.
 - [x] Lifecycle: Oracles 8 MiB thread/log, TP `AppletType`, `userAppInit`/
       `userAppExit`, code-memory cleanup. The game runs from the loader's
@@ -155,7 +159,8 @@ Checklist:
 - `loader/` - low-address NRO loader.
 - `src/` - Switch host layer (video/audio/input/FS/lifecycle).
 - `game/` - the Emerald game NRO built from `3ds_port/full.mk`.
-- `data/` - generated game data, never committed.
+- `data/` - small engine files; `emerald3ds.pak` at the app root holds the
+  generated game data. Neither is committed.
 - `patches/` - port and platform patches.
 - `build/`, `dist/` - generated outputs, ignored by git.
 

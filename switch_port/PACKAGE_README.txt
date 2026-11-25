@@ -1,4 +1,4 @@
-# Emerald NX â€” package
+# Emerald NX — package
 
 Copy this folder to the SD card as:
 
@@ -12,15 +12,22 @@ the album/applet mode.
 
 ## Files
 
-- `emerald-nx.nro` â€” low-address loader. It reads `emerald-game.nro`, maps it
+- `emerald-nx.nro` — low-address loader. It reads `emerald-game.nro`, maps it
   below 4 GiB, and starts it.
-- `emerald-game.nro` â€” the real Emerald engine for Switch.
-- `data/` â€” engine and game data, read through the `romfs:/` path mapping.
-- `licences/` â€” the port's licence and the third-party notices.
-- `loader.log` â€” written by the loader (created on first run).
-- `emerald-nx.log` â€” stdout/stderr of the game.
-- `port.log` â€” the engine's own log (created on first run).
-- `settings.txt`, `*.sav` â€” created beside the NRO.
+- `emerald-game.nro` — the real Emerald engine for Switch.
+- `emerald3ds.pak` — all game data in one pack: graphics, maps, scripts,
+  songs, tables and voxel data. It is read in place; do not extract it.
+- `data/` — the small engine files the engine opens directly (boot marker,
+  ABI/build id, asset index, relocation tables and port art).
+- `licences/` — the port's licence and the third-party notices.
+- `loader.log` — written by the loader (created on first run).
+- `emerald-nx.log` — stdout/stderr of the game.
+- `port.log` — the engine's own log (created on first run).
+- `settings.txt`, `*.sav` — created beside the NRO.
+
+If you are updating from an older package that used the loose `data/` tree,
+delete that folder before extracting this one; only the 15 engine files are
+needed now.
 
 ## Controls
 
@@ -35,7 +42,7 @@ the album/applet mode.
 
 ## Data / legal
 
-The `data/` folder is generated from the project's source assets. Do not
+`emerald3ds.pak` and `data/` are generated from the project's source assets. Do not
 redistribute a package containing game data unless you have the rights to do
 so. No ROM, save or original cartridge data is included by the build scripts;
 the user supplies their own ROM when generating localized data.

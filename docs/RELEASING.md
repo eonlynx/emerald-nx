@@ -138,13 +138,15 @@ and attached as `emerald-nx.zip`. It is an SD-root archive:
 switch/emerald-nx/
     emerald-nx.nro
     emerald-game.nro
+    emerald3ds.pak
     data/
     README.txt
     licences/
 ```
 
-Unlike the 3DS assets, it ships the generated `data/` directory so it can run
-without a separate builder. It still contains no ROM or save file. Attach it
+Unlike the 3DS assets, it ships the generated data so it can run without a
+separate builder: `emerald3ds.pak` holds the 6,425 game files and `data/`
+holds the small engine files. It still contains no ROM or save file. Attach it
 next to the 3DS assets when the release covers both platforms, and include its
 SHA-256 in `SHA256SUMS.txt`. The package is not produced by
 `tools/build_release.py`; build and test it on hardware before publishing, and

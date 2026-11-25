@@ -22,6 +22,7 @@ Matched the Oracles/Dusklight release shape:
 switch/emerald-nx/
     emerald-nx.nro
     emerald-game.nro
+    emerald3ds.pak
     data/
     README.txt
     licences/
@@ -31,6 +32,14 @@ switch/emerald-nx/
 `switch_port/dist/emerald-nx.zip` with the `switch/` directory at the archive
 root. The game and loader now use `switch_port/icon.jpg` (256x256, derived
 from the project artwork) instead of the libnx default icon.
+
+The 6,425 data files are packed as `emerald3ds.pak`; `data/` keeps only the
+15 engine files the engine opens directly (boot marker, ABI/build id, asset
+index, relocation tables and port art). This is the same single-file approach
+as the 3DS release and as toniisound's `smbr-nx`, which ships its game data as
+one `game.pck`; the Oracles ports and Dusklight instead require a ROM or disc
+image. A runtime ZIP reader was not added: the engine already has a pack
+backend, and a ZIP would need a new inflate/decompression path on Horizon.
 
 ## 3. Proginji2000 branches
 
@@ -70,10 +79,16 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 
 ## 5. Builds
 
-- Switch: full AArch64 build, NRO, data bundles and package pass. Link check
-  accepts only the expected `R_AARCH64_ABS32` sites in `.gamedata`. Final
-  build id `ac68ac2c0e6ccbff`; package SHA-256
-  `A51947B218BD45F940A092D1050118ECFAFF0114C2F2C8FEA0E1A7EA47839755`.
+- Switch: full AArch64 build, NRO, data bundles, single-file pack and package
+  pass. Link check accepts only the expected `R_AARCH64_ABS32` sites in
+  `.gamedata`. Final build id `f9a50e5fe57e242d`; package 13,358,459 bytes,
+  SHA-256 `D5437FE00D9A45FA6B43C2FBE4A213442702D88FF05871F9CBFA74FEF7937963`.
+  `emerald-game.nro` SHA-256
+  `03BEE2E6F8F54C944D558A4540BEA28C8EA6C18007BD68B4E6155DE68ABDB02C`,
+  `emerald3ds.pak` SHA-256
+  `0223A4F674B8030C7647397B784336AA89C1990A204027DA1D308A843816A6EF`
+  (6,425 entries, 55,899,744 bytes, ABI `b85c8259`), loader SHA-256
+  `3A156D92A923A645C9226E7215EE5E5C101113E462E6506A36E30ADDC1C380BC`.
 - 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM;
   `emerald3ds.elf` 31,901,540 bytes and `emerald3ds.3dsx` 62,087,788 bytes,
   rc=0.
@@ -94,5 +109,11 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
   bias.
 - Frame clocks reset on focus return; dock changes recreate only the EGL
   surface.
+- Game data now goes through the existing 3DS pack backend: one
+  `emerald3ds.pak` (6,425 entries) instead of 6,400 small files. The pack is
+  read in place with the same seek/lock path used on 3DS, so it adds no
+  decompression or per-file SD metadata. The release zip drops from 15.24 MB
+  to 13.36 MB because the pack replaces thousands of directory entries.
+  `DATA_BACKEND=1` still builds the loose tree for development.
 
 

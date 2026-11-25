@@ -15,6 +15,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TREE="${TREE:-$ROOT/build/upstream/3ds_port}"
 JOBS="${JOBS:-2}"
+# One emerald3ds.pak is the release default; DATA_BACKEND=1 keeps the old
+# loose data/ tree for development.
+DATA_BACKEND="${DATA_BACKEND:-3}"
 PYTHON="${PYTHON:-python3}"
 export DEVKITPRO="${DEVKITPRO:-/opt/devkitpro}"
 export DEVKITARM="${DEVKITARM:-$DEVKITPRO/devkitARM}"
@@ -42,8 +45,14 @@ if [ "${CLEAN_BUILD:-0}" = "1" ]; then
     rm -rf "$TREE/build"
 fi
 rm -f "$TREE/romfs/shaders/voxel.shbin"
+if [ "$DATA_BACKEND" = "3" ]; then
+    # A marker left by an older loose/romfs build would put the engine in the
+    # wrong backend; the pak build does not need it.
+    rm -f "$TREE/romfs/data.embedded"
+fi
 
-make -C "$TREE" -f "$ROOT/switch_port/switch.mk" -j"$JOBS" PYTHON="$PYTHON"
+make -C "$TREE" -f "$ROOT/switch_port/switch.mk" -j"$JOBS" PYTHON="$PYTHON" \
+    DATA_BACKEND="$DATA_BACKEND"
 
 DIST="$ROOT/switch_port/dist"
 APP="$DIST/switch/emerald-nx"
@@ -52,13 +61,23 @@ mkdir -p "$APP/data"
 
 cp "$ROOT/switch_port/loader/emerald-nx.nro" "$APP/emerald-nx.nro"
 cp "$TREE/emerald-game.nro" "$APP/emerald-game.nro"
-cp -a "$TREE/romfs/." "$APP/data/"
+if [ "$DATA_BACKEND" = "3" ]; then
+    # The pack carries the 6,400 game data files.  data/ keeps only the small
+    # engine files the engine opens directly (ABI, asset index, .rel tables,
+    # port art).
+    "$PYTHON" "$ROOT/tools/port_common/staging.py" engine \
+        --romfs "$TREE/romfs" --out "$APP/data"
+    rm -f "$APP/data/data.embedded"
+    cp "$TREE/build/emerald3ds.pak" "$APP/emerald3ds.pak"
+else
+    cp -a "$TREE/romfs/." "$APP/data/"
+fi
 cp "$ROOT/switch_port/PACKAGE_README.txt" "$APP/README.txt"
 mkdir -p "$APP/licences"
 cp "$ROOT/LICENSE-PORT.md" "$APP/licences/LICENSE-PORT.txt"
 cp "$ROOT/NOTICE.md" "$APP/licences/NOTICE.txt"
 
-( cd "$DIST" && rm -f emerald-nx.zip && zip -qr emerald-nx.zip switch )
+( cd "$DIST" && rm -f emerald-nx.zip && zip -qr9 emerald-nx.zip switch )
 
 echo
 echo "Done: $DIST/switch/emerald-nx/"

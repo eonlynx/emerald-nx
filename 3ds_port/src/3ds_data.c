@@ -151,6 +151,11 @@ static bool OpenPak(void)
     sPak = fopen(CTR_DATA_PAK_PATH, "rb");
     if (sPak == NULL)
     {
+#ifdef PLATFORM_SWITCH
+        SetError("The game data pack was not found.",
+                 "Copy emerald3ds.pak next to emerald-nx.nro:\n\n"
+                 "  sdmc:/switch/emerald-nx/emerald3ds.pak");
+#else
         SetError(CTR_TEXT("The game data pack was not found.", "The game data pack was not found.", "The game data pack was not found.", "The game data pack was not found.", "O pacote de dados nao foi encontrado.", "Das Datenpaket wurde nicht gefunden.", "The game data pack was not found."),
                  CTR_TEXT_PT_DE("Run the builder that came with this\n"
                              "release with your own Pokemon Emerald\n"
@@ -164,6 +169,7 @@ static bool OpenPak(void)
                              "mit deinem eigenen Smaragd-ROM und\n"
                              "installiere das Datenpaket nach:\n\n"
                              "  /3ds/emerald3ds/emerald3ds.pak"));
+#endif
         return false;
     }
     setvbuf(sPak, NULL, _IOFBF, 64 * 1024);

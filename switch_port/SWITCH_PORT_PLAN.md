@@ -1,4 +1,4 @@
-﻿# Emerald 3DS â†’ Nintendo Switch â€” Port Plan (Phase 3)
+# Emerald 3DS → Nintendo Switch — Port Plan (Phase 3)
 
 **Status:** approved; Phase 4 in progress. Loader spike built, hardware test
 pending.
@@ -24,7 +24,7 @@ render or filesystem change to cherry-pick. Therefore:
 - **Cherry-picks applied from `main`:** 0.
 
 A later Phase 2b audit of the two technical branches added **2 approved
-cherry-picks** (see Â§1.3):
+cherry-picks** (see §1.3):
 `1e2e8bb` (ZL/ZR battle-speed routing) and `f6373bb` (read-only imported-save
 diagnostic).
 
@@ -37,13 +37,13 @@ expects everything (code, data, heap, stack) to be below 4 GiB.
 The key finding of this phase:
 
 > hbloader runs NROs in a **36-bit process**, but the NRO it loads is mapped
-> with `virtmemFindCodeMemory` inside the alias-code region (128 MiBâ€“64 GiB).
+> with `virtmemFindCodeMemory` inside the alias-code region (128 MiB–64 GiB).
 > That address is random and can be above 4 GiB. Being an NRO is therefore not
 > enough: the mapping must be **forced low**.
 >
 > The recommended solution is a **two-stage NRO loader**, modelled on
 > `nx-hbloader`'s `loadNro` and toniisound's `smbr-nx` `so_util`:
-> `emerald-nx.nro` reserves a low gap (128 MiBâ€“2 GiB), maps the real
+> `emerald-nx.nro` reserves a low gap (128 MiB–2 GiB), maps the real
 > `emerald-game.nro` there with `svcMapProcessCodeMemory`, passes it a low heap
 > and stack, and jumps to its entrypoint. The game remains a normal libnx NRO
 > and applies its own relocations when loaded low.
@@ -53,13 +53,13 @@ engine to 64-bit.
 
 ---
 
-## 1. Phase 2 â€” `Proginji2000/main` audit
+## 1. Phase 2 — `Proginji2000/main` audit
 
 ### 1.1 Divergence point
 
 - Merge-base with `Cer0-D/main`: `ba8ca267` ("Update README.md").
 - `Proginji2000/main` = `ba8ca267` + 22 commits.
-- Total delta: 7 files, +434/âˆ’2 lines, **only** `README.md` and `docs/`.
+- Total delta: 7 files, +434/−2 lines, **only** `README.md` and `docs/`.
 - Check: `git diff --name-only ba8ca267..Proginji2000/main` returns no file
   outside `README.md`/`docs/`.
 
@@ -94,7 +94,7 @@ engine to 64-bit.
 (stability, memory, render, audio, controls, filesystem or technical parity).
 `git cherry-pick -x` was not run.
 
-### 1.3 Phase 2b â€” technical branches
+### 1.3 Phase 2b — technical branches
 
 The user approved auditing the two branches after the initial `main` pass.
 Both branch histories were compared against `ba8ca267`:
@@ -112,8 +112,8 @@ The following were reviewed and **cherry-picked with `-x`**:
 
 Resulting commits on `port-switch-wip`:
 
-- `56533ff` â€” ZL/ZR routing.
-- `e8e2699` â€” imported-save diagnostic.
+- `56533ff` — ZL/ZR routing.
+- `e8e2699` — imported-save diagnostic.
 
 The rest were **DISCARDED**:
 
@@ -141,7 +141,7 @@ there were no real changes and no untracked files.
 
 ---
 
-## 2. Phase 3 â€” How toniisound ported (and what is missing)
+## 2. Phase 3 — How toniisound ported (and what is missing)
 
 ### 2.1 Repositories reviewed
 
@@ -149,7 +149,7 @@ there were no real changes and no untracked files.
 |---|---|---|
 | `The-Oracles-Project-NX` | Oracle of Ages/Seasons launcher, SDL3 + mGBA | CMake/devkitA64, static SDL3, EGL/GLES2, NRO/NACP, Nintendo input, audio patch, `sdmc:/switch/...`, 8 MiB thread, overclock. |
 | `oracles-nx` | `oracles-native` (GBC decomp) | SDL3/EGL, fibers without `mmap`, `sdmc:/switch/oracles`, Switch buttons, optional curl sync. |
-| `smbr-nx` | Super Mario Bros. Remastered (Godot Android) | **`.so` loader with `svcMapProcessCodeMemory`**, code arenas, libc/GLES imports, OpenSLâ†’audout audio, fake JNI. Key for the 32-bit problem. |
+| `smbr-nx` | Super Mario Bros. Remastered (Godot Android) | **`.so` loader with `svcMapProcessCodeMemory`**, code arenas, libc/GLES imports, OpenSL→audout audio, fake JNI. Key for the 32-bit problem. |
 | `DKC1/2/3Recomp-NX` | SNES recompilations | SDL2 + OpenGL 3.3, Switch presenter, gamepad, rumble, settings in `sdmc`. |
 | `doa3-nx`, `doa2u-nx` | Native Xbox ports | 64-bit runtime with translated 32-bit guest memory; not applicable to Emerald's host pointers. |
 | `model2-nx`, `supermodel-nx`, `vf1-recomp-nx`, `daytona-recomp-nx` | Emulators/recomps | Build/input/audio patterns; guest memory, not host pointers. |
@@ -204,8 +204,8 @@ functions at runtime; not needed for Emerald, but the build pattern is the same.
 
 - `SDL_WINDOW_OPENGL` is required: Switch SDL only initializes EGL for OpenGL
   windows. The renderer is `opengles2` (`SDL_HINT_RENDER_DRIVER`).
-- Single fullscreen window: `SDL_GetDesktopDisplayMode` decides 1280Ã—720
-  handheld / 1920Ã—1080 docked; resizing is disabled.
+- Single fullscreen window: `SDL_GetDesktopDisplayMode` decides 1280×720
+  handheld / 1920×1080 docked; resizing is disabled.
 - Static SDL3; renderer/textures go through EGL/GLES2 (switch-mesa).
 - Audio through SDL3 with the voice-restart patch.
 - Optional overclock: `clkrst` to 1785 MHz while running, restored on exit
@@ -239,7 +239,7 @@ functions at runtime; not needed for Emerald, but the build pattern is the same.
 **The-Oracles-Project-NX** (`launcher/sdl_window.c`):
 
 - Switch: buttons are read **by their letter**, not by position:
-  `SDL_GAMEPAD_BUTTON_EAST` â†’ A, `SOUTH` â†’ B, `NORTH` â†’ X, `WEST` â†’ Y.
+  `SDL_GAMEPAD_BUTTON_EAST` → A, `SOUTH` → B, `NORTH` → X, `WEST` → Y.
 - A = accept/OK; B = back.
 - Left stick click = pause.
 - Everything else maps as in `PLAYING.md`.
@@ -251,7 +251,7 @@ functions at runtime; not needed for Emerald, but the build pattern is the same.
   UP, DOWN, LEFT, RIGHT"; explicit `ZR`/`ZL`.
 - Default pads: Pause on R; items on X/Y; HOME belongs to the system and is
   not used.
-- Touch: `hidGetTouchScreenStates`, coordinates scaled from 1280Ã—720 to the
+- Touch: `hidGetTouchScreenStates`, coordinates scaled from 1280×720 to the
   surface.
 
 **DKC1/2/3:** `switch_gamepad.c` + `switch_platform.c`; rumble through `hid`
@@ -327,7 +327,7 @@ for `res/` inside the NRO.
   stderr to the log, calls `socketInitializeDefault()` only for curl, and sets
   `cache_arg` to the app folder.
 - `SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)`.
-- `oracles_open_window` creates a fullscreen 1280Ã—720 window with
+- `oracles_open_window` creates a fullscreen 1280×720 window with
   `SDL_WINDOW_OPENGL`; the renderer is GLES2.
 - `switch_install_roms` at startup if there is no `rom_arg`/`game_arg`.
 - `apply_window_settings` forces fullscreen; `fit_window_to_picture` is a
@@ -358,16 +358,16 @@ assembled data (`.int symbol`). On Android arm64 this was solved with:
   valid.
 
 On Switch there is **no `mmap`**, and hbloader chooses the NRO address.
-AtmosphÃ¨re's address-space data (`svc_memory_map.hpp`):
+Atmosphère's address-space data (`svc_memory_map.hpp`):
 
 - 36-bit process (`hbl.json` `address_space_type: 1`).
-- Small map: `0x08000000`â€“`0x80000000` (128 MiBâ€“2 GiB).
-- Large map: `0x80000000`â€“`0x1000000000` (2â€“64 GiB).
+- Small map: `0x08000000`–`0x80000000` (128 MiB–2 GiB).
+- Large map: `0x80000000`–`0x1000000000` (2–64 GiB).
 - Heap: 8 GiB, placed after the maps (it can start at 2 GiB and cross 4 GiB).
-- Alias-code: `0x08000000`â€“`0x1000000000` (128 MiBâ€“64 GiB).
+- Alias-code: `0x08000000`–`0x1000000000` (128 MiB–64 GiB).
 
 `hbloader` maps the NRO with `virtmemFindCodeMemory`, which picks a random
-address in the alias-code region (128 MiBâ€“64 GiB). **It can land above 4 GiB.**
+address in the alias-code region (128 MiB–64 GiB). **It can land above 4 GiB.**
 A normal NRO therefore does not guarantee 32-bit pointers.
 
 Options:
@@ -375,7 +375,7 @@ Options:
 1. **Two-stage NRO loader (recommended).** A small `emerald-nx.nro`, based on
    `nx-hbloader/loadNro` and toniisound's `smbr-nx` `so_util`, that:
    - reads `emerald-game.nro` from `sdmc:/switch/emerald-nx/`;
-   - finds a free low gap (128 MiBâ€“2 GiB) with `svcQueryMemory`;
+   - finds a free low gap (128 MiB–2 GiB) with `svcQueryMemory`;
    - reserves it with `virtmemAddReservation` and maps it with
      `svcMapProcessCodeMemory`;
    - creates a low RW arena for the game heap and stack;
@@ -493,9 +493,9 @@ header).
   - `SyncWindows`: a single surface; no `ANativeWindow`.
   - `CtrVideo_Present`: `eglMakeCurrent` + `eglSwapBuffers`.
   - `AndroidVideo_SetSingleScreen(true)` from the start.
-- Resolution: 1280Ã—720 handheld / 1920Ã—1080 docked. `CtrVideo_ChooseWidth`
+- Resolution: 1280×720 handheld / 1920×1080 docked. `CtrVideo_ChooseWidth`
   with the real size; the top picture follows the display aspect (432x240 for 16:9, gDisplayWidth) and is scaled; the bottom
-  (320Ã—240) is an overlay window, as in Cer0-D.
+  (320×240) is an overlay window, as in Cer0-D.
 - `SDL_GetDesktopDisplayMode` or `appletGetOperationMode` for the mode; if
   docking changes, update the viewport without restarting the game.
 - The bottom panel is shown when `CtrBottom_PanelShown()` asks for it; touch
@@ -503,7 +503,7 @@ header).
 
 ### 3.4 Audio
 
-- Reuse `android_audio.c`'s ring/resampler (42060 Hz mixer â†’ 48 kHz device,
+- Reuse `android_audio.c`'s ring/resampler (42060 Hz mixer → 48 kHz device,
   drift correction).
 - Output through SDL3 (`SDL_OpenAudioDeviceStream`) with the Switch audio
   patch, or through `audout`/`audren` directly (like `smbr-nx`).
@@ -517,13 +517,13 @@ header).
 - `switch_input.c` reads `padUpdate`/`padGetButtons`/`padGetStickPos` and
   `hidGetTouchScreenStates`.
 - Letter-based mapping:
-  - `HidNpadButton_A` â†’ `KEY_A`; `B` â†’ `KEY_B`; `X` â†’ `KEY_X`; `Y` â†’ `KEY_Y`.
-  - `L/R` â†’ `KEY_L/R`; `ZL/ZR` â†’ speed step (like Android).
-  - `Plus` â†’ `KEY_START`; `Minus` â†’ `KEY_SELECT` (and bottom-panel toggle if
+  - `HidNpadButton_A` → `KEY_A`; `B` → `KEY_B`; `X` → `KEY_X`; `Y` → `KEY_Y`.
+  - `L/R` → `KEY_L/R`; `ZL/ZR` → speed step (like Android).
+  - `Plus` → `KEY_START`; `Minus` → `KEY_SELECT` (and bottom-panel toggle if
     desired).
-  - D-pad â†’ `KEY_DUP/DOWN/LEFT/RIGHT`.
-  - Left stick â†’ Circle Pad (Â±156).
-  - Touch â†’ 320Ã—240 bottom-panel coordinates, with
+  - D-pad → `KEY_DUP/DOWN/LEFT/RIGHT`.
+  - Left stick → Circle Pad (±156).
+  - Touch → 320×240 bottom-panel coordinates, with
     `AndroidVideo_BottomViewport`/`WholeTouch`.
 - Do not use HOME (system-owned). Optional Capture for screenshots.
 
@@ -534,13 +534,13 @@ header).
 - `saves/` or root for `.sav`, settings and logs; decide and document.
 - `switch_fs.c` wraps `fopen/rename/remove/unlink/mkdir/stat/access/open` and
   translates:
-  - `romfs:/...` â†’ `sdmc:/switch/emerald-nx/data/...`
-  - `sdmc:/3ds/emerald3ds/...` â†’ `sdmc:/switch/emerald-nx/...`
-  - `sdmc:/3ds/pokeemerald/...` â†’ `sdmc:/switch/emerald-nx/legacy/...`
+  - `romfs:/...` → `sdmc:/switch/emerald-nx/data/...`
+  - `sdmc:/3ds/emerald3ds/...` → `sdmc:/switch/emerald-nx/...`
+  - `sdmc:/3ds/pokeemerald/...` → `sdmc:/switch/emerald-nx/legacy/...`
   - other `sdmc:/...` paths are left untouched.
 - `CtrFs_Init` on Switch: no `romfsInit`; validate `data/boot.txt`; create
   dirs.
-- `CtrFs_OpenAsset` â†’ `data/`; `CtrFs_OpenData` â†’ root.
+- `CtrFs_OpenAsset` → `data/`; `CtrFs_OpenData` → root.
 - Do not include ROMs, saves or protected data in the repo; the data script
   takes the user's ROM and generates `data/` locally.
 
@@ -638,7 +638,7 @@ Reference review result (2026-11-25):
 
 ---
 
-## 4. Phase 4 â€” Milestones and atomic commits
+## 4. Phase 4 — Milestones and atomic commits
 
 1. **`build(switch): add devkitA64 build and NRO packaging`**
    - `switch_port/` Makefile/CMake, flags, `elf2nro`, NACP, icon.
@@ -673,8 +673,8 @@ Each commit must build on its own; the order allows stopping and testing.
 
 The local toolchain is installed and working:
 
-- `C:\devkitPro\devkitA64` â€” GCC 16.1.0.
-- `C:\devkitPro\devkitARM` â€” GCC 16.1.0 (GBA/3DS restored).
+- `C:\devkitPro\devkitA64` — GCC 16.1.0.
+- `C:\devkitPro\devkitARM` — GCC 16.1.0 (GBA/3DS restored).
 - `C:\devkitPro\libnx`, `libctru`, `citro2d`, `citro3d`, `libgba`, `libtonc`.
 - `switch-tools`, `switch-cmake`, `switch-pkg-config`, `switch-mesa`,
   `switch-libdrm_nouveau`, `deko3d`, `uam`.
@@ -746,8 +746,8 @@ Hardware results are pending.
 
 - `emerald-nx.nro` starts from hbmenu title takeover on real Switch hardware.
 - `&main`, game heap and stack are <4 GiB; 32-bit pointers work.
-- 1280Ã—720 handheld and 1920Ã—1080 docked, single screen with bottom overlay.
-- Audio 42060â†’48k without severe underruns; letter-based input; touch in
+- 1280×720 handheld and 1920×1080 docked, single screen with bottom overlay.
+- Audio 42060→48k without severe underruns; letter-based input; touch in
   handheld.
 - Saves/settings in `sdmc:/switch/emerald-nx/`; valid save round-trip.
 - External `data/`; nothing protected in git.
@@ -756,7 +756,7 @@ Hardware results are pending.
 
 ---
 
-## 7. Appendix â€” Address-space evidence (AtmosphÃ¨re)
+## 7. Appendix — Address-space evidence (Atmosphère)
 
 From `libraries/libvapours/include/vapours/svc/svc_memory_map.hpp`:
 
