@@ -26,6 +26,31 @@ third-party components. Each keeps its own terms; `LICENSE-PORT.md`
   `3ds_port/emerald3ds.ld.in` is a modified copy and stays under the MPL 2.0
   (https://mozilla.org/MPL/2.0/).
 
+## Switch port
+
+- **nx-hbloader** (switchbrew), ISC-style licence. `switch_port/loader/` follows
+  its NRO load path (`loadNro`: NroHeader, `svcMapProcessCodeMemory`, segment
+  permissions) and reuses its low-address mapping model for Emerald's 32-bit
+  data. The source is a separate implementation for a two-stage NRO loader.
+- **smbr-nx** (toniisound), MIT. The loader's page-map permission pass follows
+  `source/so_util.c` (`so_finalize`): set executable pages RX before any page
+  becomes writable, then the remaining pages RW. The audout feeder follows the
+  same `audoutAppendAudioOutBuffer`/resampler pattern.
+- **oracles-nx** and **The-Oracles-Project-NX** (toniisound), MIT. Reviewed for
+  the NRO/CMake packaging, `sdmc:/switch/...` layout, title-takeover launch and
+  log placement; the Makefile build keeps the Emerald tree's own structure.
+- **Dusklight's Switch port** (Alexgg1014), GPL-2.0 with the funchook linking
+  exception. `src/dusk/switch_elf_memory.cpp` was reviewed for the
+  stage -> `svcMapProcessCodeMemory` -> per-range permissions -> cache flush
+  sequence and for the exit-cleanup lesson (unmap if returning to hbloader).
+  No Dusklight code is included; the loader is written from the ISC/MIT
+  references above.
+- **libnx** (devkitPro), MIT. `switch_port/emerald_switch.ld` is a modified copy
+  of libnx's `switch.ld`, and the NRO build uses libnx's `switch.specs`,
+  `elf2nro` and `nacptool`.
+- **switch-mesa / libdrm_nouveau** (devkitPro), MIT. Linked for EGL/GLES3.
+- **devkitA64 / GCC / newlib** — toolchain and C library.
+
 ## Libraries used by the build
 
 - **libctru, citro2d, citro3d** (devkitPro), zlib licence — linked into the 3DSX.

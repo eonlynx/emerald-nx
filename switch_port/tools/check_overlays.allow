@@ -1,0 +1,24 @@
+# Overlays checked and found harmless on the Switch port (tools/check_overlays_switch.py).
+# "file:function what", then why. Nothing needs to be here: a structure of a
+# task's own goes in TASK_STATE (task.h) instead.
+
+# The Switch milestone has no wireless link: switch_local_stubs.c answers
+# LocalLink_* without starting RFU, so rfu_initializeAPI never runs.  If local
+# wireless is added, these structures must be moved to TASK_STATE or padded.
+src/librfu_rfu.c:rfu_initializeAPI struct RfuFixed holds pointers
+src/librfu_rfu.c:rfu_initializeAPI struct RfuSlotStatusNI holds pointers
+src/librfu_rfu.c:rfu_initializeAPI struct RfuSlotStatusUNI holds pointers
+src/librfu_rfu.c:rfu_initializeAPI struct RfuIntrStruct holds pointers
+
+# The game's allocator stores MemBlock headers inside its own gHeap and walks
+# them with sizeof(struct MemBlock); it never assumes the GBA header size or
+# fixed field offsets.  On a 64-bit build the header is larger, so gHeap has
+# less usable space.  It remains a valid allocator; gHeap is sized for the GBA
+# and the port has not changed HEAP_SIZE.
+src/malloc.c:PutMemBlockHeader struct MemBlock holds pointers
+src/malloc.c:PutFirstMemBlockHeader struct MemBlock holds pointers
+src/malloc.c:AllocInternal struct MemBlock holds pointers
+src/malloc.c:FreeInternal struct MemBlock holds pointers
+src/malloc.c:CheckMemBlockInternal struct MemBlock holds pointers
+src/malloc.c:CheckHeap struct MemBlock holds pointers
+src/malloc.c:Port_VisitGameHeap struct MemBlock holds pointers
