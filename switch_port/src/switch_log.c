@@ -19,11 +19,7 @@
 
 static const char *const sTags[] = { "BOOT", "VIDEO", "INPUT", "FS", "AUDIO", "GAME", "ERROR" };
 static pthread_mutex_t sLock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t sWake = PTHREAD_COND_INITIALIZER;
-static char sRing[RING_BYTES];
-static size_t sHead, sTail;
-static bool sFileOn, sQuit;
-static pthread_t sWriter;
+static bool sFileOn;
 static FILE *sFile;
 static char sFatal[256];
 
@@ -35,42 +31,17 @@ void CtrLog_LastDrain(float *ms, float *agoMs)
     *agoMs = 1.0e6f;
 }
 
-static void *Writer(void *arg)
-{
-    (void)arg;
-    pthread_mutex_lock(&sLock);
-    while (!sQuit || sHead != sTail)
-    {
-        while (sHead == sTail && !sQuit)
-            pthread_cond_wait(&sWake, &sLock);
-        size_t head = sHead, tail = sTail;
-        pthread_mutex_unlock(&sLock);
-        if (head != tail && sFile)
-        {
-            if (tail < head)
-                fwrite(sRing + tail, 1, head - tail, sFile);
-            else
-            {
-                fwrite(sRing + tail, 1, RING_BYTES - tail, sFile);
-                fwrite(sRing, 1, head, sFile);
-            }
-            fflush(sFile);
-        }
-        pthread_mutex_lock(&sLock);
-        sTail = head;
-    }
-    pthread_mutex_unlock(&sLock);
-    return NULL;
-}
-
 void CtrLog_Init(void)
 {
+    fprintf(stderr, "Emerald NX: log init (mkdir)\n");
+    fflush(stderr);
     mkdir("sdmc:/3ds", 0777);
     mkdir("sdmc:/3ds/emerald3ds", 0777);
+    fprintf(stderr, "Emerald NX: log init (open)\n");
+    fflush(stderr);
     rename(LOG_DIR "port.log", LOG_DIR "port-prev.log");
     sFile = fopen(LOG_DIR "port.log", "w");
-    if (sFile && pthread_create(&sWriter, NULL, Writer, NULL) == 0)
-        sFileOn = true;
+    sFileOn = sFile != NULL;
     fprintf(stderr, "Emerald NX: log started (file %s)\n", sFileOn ? "on" : "off");
     fflush(stderr);
 }
@@ -80,28 +51,9 @@ void CtrLog_Close(void)
     if (!sFileOn)
         return;
     pthread_mutex_lock(&sLock);
-    sQuit = true;
-    pthread_cond_signal(&sWake);
-    pthread_mutex_unlock(&sLock);
-    pthread_join(sWriter, NULL);
     fclose(sFile);
     sFile = NULL;
     sFileOn = false;
-}
-
-static void Append(const char *text, size_t len)
-{
-    pthread_mutex_lock(&sLock);
-    size_t used = (sHead + RING_BYTES - sTail) % RING_BYTES;
-    if (used + len < RING_BYTES - 1)
-    {
-        for (size_t i = 0; i < len; i++)
-        {
-            sRing[sHead] = text[i];
-            sHead = (sHead + 1) % RING_BYTES;
-        }
-        pthread_cond_signal(&sWake);
-    }
     pthread_mutex_unlock(&sLock);
 }
 
@@ -131,7 +83,13 @@ void CtrLog_Write(CtrLogCategory category, const char *format, ...)
     if (sFileOn)
     {
         line[length++] = '\n';
-        Append(line, (size_t)length);
+        pthread_mutex_lock(&sLock);
+        if (sFile)
+        {
+            fwrite(line, 1, (size_t)length, sFile);
+            fflush(sFile);
+        }
+        pthread_mutex_unlock(&sLock);
     }
 }
 

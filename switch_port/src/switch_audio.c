@@ -9,7 +9,6 @@
  */
 #include <switch.h>
 
-#include <pthread.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -39,7 +38,7 @@ typedef struct {
 static int16_t sRing[RING_FRAMES * 2];
 static atomic_uint sWritten, sRead;
 static OutBuffer sOut[BUFFERS];
-static pthread_t sFeeder;
+static Thread sFeeder;
 static atomic_bool sQuit;
 static atomic_bool sPaused;
 static bool sStarted;
@@ -68,7 +67,7 @@ static void reclaim(void) {
     }
 }
 
-static void *Feeder(void *arg) {
+static void Feeder(void *arg) {
     (void)arg;
     while (!atomic_load_explicit(&sQuit, memory_order_acquire)) {
         if (atomic_load_explicit(&sPaused, memory_order_acquire)) {
@@ -129,7 +128,6 @@ static void *Feeder(void *arg) {
             ++sStats.drops;
         }
     }
-    return NULL;
 }
 
 static bool OpenAudio(void) {
@@ -179,7 +177,10 @@ bool CtrAudio_Init(void) {
     }
     atomic_store(&sQuit, false);
     atomic_store(&sPaused, false);
-    if (pthread_create(&sFeeder, NULL, Feeder, NULL) != 0) {
+    /* libnx threadCreate, as smbr-nx's audout feeder: no newlib pthread
+     * state before the engine has initialized its own heap and TLS. */
+    if (R_FAILED(threadCreate(&sFeeder, Feeder, NULL, NULL, 64 * 1024, 0x2C, -2))
+        || R_FAILED(threadStart(&sFeeder))) {
         CtrLog_Write(CTR_LOG_AUDIO, "audio: feeder thread failed");
         audoutExit();
         return false;
@@ -193,7 +194,8 @@ void CtrAudio_Shutdown(void) {
         return;
     }
     atomic_store(&sQuit, true);
-    pthread_join(sFeeder, NULL);
+    threadWaitForExit(&sFeeder);
+    threadClose(&sFeeder);
     sStarted = false;
     audoutStopAudioOut();
     for (int i = 0; i < BUFFERS; ++i) {

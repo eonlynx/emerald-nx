@@ -150,21 +150,26 @@ bool CtrPlatform_Init(void)
     sFrames = 0;
     sLastFrame = CtrPlatform_Milliseconds();
     CtrLog_Write(CTR_LOG_BOOT, "Android platform, files at %s", AndroidHost_FilesDir());
+    CtrLog_Write(CTR_LOG_BOOT, "platform init: filesystem");
     if (!CtrFs_Init())
     {
         CtrLog_Write(CTR_LOG_ERROR, "platform init: filesystem failed");
         return false;
     }
+    CtrLog_Write(CTR_LOG_BOOT, "platform init: settings");
     CtrSettings_Load();
     CtrScenario_Init();
     CtrProf_LogIdentity();
+    CtrLog_Write(CTR_LOG_BOOT, "platform init: data");
     if (!CtrData_Init())
         CtrPlatform_ShowDataError(CtrData_ErrorTitle(), CtrData_ErrorDetail());
+    CtrLog_Write(CTR_LOG_BOOT, "platform init: video");
     if (!CtrVideo_Init())
     {
         CtrLog_Write(CTR_LOG_ERROR, "platform init: video failed");
         return false;
     }
+    CtrLog_Write(CTR_LOG_BOOT, "platform init: audio");
     CtrAudio_Init();
     LocalLink_Init();
     return true;

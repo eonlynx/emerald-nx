@@ -25,6 +25,16 @@ in the same tree and keep building.
   permissions exist, following smbr-nx and Dusklight, instead of while the
   freshly mapped pages are still inaccessible. The loader also logs each
   mapping step so a failed boot can be located without a debugger.
+- Logging: Switch writes `port.log` synchronously instead of starting a
+  newlib writer thread, and startup logs each platform step to
+  `emerald-nx.log`. This follows the single-threaded logging in smbr-nx and
+  keeps a failed first boot diagnosable from the SD card. A libnx exception
+  handler records the faulting PC, LR, SP, FAR and ESR before the process
+  exits.
+- Timing/threads: Switch reads `armGetSystemTick` directly (19.2 MHz), as
+  smbr-nx does, instead of converting `clock_gettime` nanoseconds; the audout
+  feeder is a libnx `threadCreate` thread. Neither depends on newlib pthread
+  state during early boot.
 - Options: BATTLE SPEED with AUTO follows the engine's setting, and the MAP
   can show progressive visited-town markers or the classic display.
   Cherry-picked from Proginji2000's branches; no story or event changes.

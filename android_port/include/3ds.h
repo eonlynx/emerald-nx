@@ -34,7 +34,19 @@ typedef u32 Handle;
 #define U64_MAX UINT64_MAX
 #define CUR_THREAD_HANDLE 0xFFFF8000
 
-/* The 3DS's ARM11 tick rate: the tick unit every caller divides by. */
+/* The tick unit every caller divides by.  On Switch, use libnx's virtual
+ * counter (19.2 MHz) directly, as smbr-nx and the other ports do, instead of
+ * a clock_gettime conversion; it is available from the first instruction and
+ * needs no time service. */
+#ifdef __SWITCH__
+extern uint64_t armGetSystemTick(void);
+#define SYSCLOCK_ARM11 19200000ULL
+static inline u64 svcGetSystemTick(void)
+{
+    return armGetSystemTick();
+}
+#else
+/* The 3DS's ARM11 tick rate. */
 #define SYSCLOCK_ARM11 268111856ULL
 
 static inline u64 svcGetSystemTick(void)
@@ -45,6 +57,7 @@ static inline u64 svcGetSystemTick(void)
     /* ns -> ticks without overflow for centuries of uptime */
     return (u64)ts.tv_sec * SYSCLOCK_ARM11 + (u64)ts.tv_nsec * SYSCLOCK_ARM11 / 1000000000ULL;
 }
+#endif
 
 static inline void svcSleepThread(s64 ns)
 {
