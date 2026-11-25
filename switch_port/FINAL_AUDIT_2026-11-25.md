@@ -10,7 +10,7 @@ shallow clones of smbr-nx and Dusklight (Alexgg1014), and nx-hbloader.
 | Loader | nx-hbloader's `loadNro`: `header.size` includes the 0x80 CRT0/NroHeader prefix; icon/NACP follow it; only the image plus zeroed bss may be mapped. smbr's `so_finalize` sets RX pages before any writable page and flushes caches on the source before mapping. Dusklight's `switch_elf_memory.cpp` invalidates the instruction cache only after the RX permissions exist. | Adopted the header/bss handling, RX-first page map and post-permission icache invalidation; the loader exits the process instead of returning to hbloader, so it never hands back aliased code pages. |
 | Video/EGL | smbr creates the EGL surface from `nwindowGetDefault`, sets `nwindowSetDimensions`, uses `eglSwapInterval`; Dusklight polls `appletGetOperationMode()` every frame. | The existing Android GLES renderer already uses the same NWindow/EGL model. `SyncWindows` recreates the surface when the operation mode changes (720p handheld / 1080p docked). |
 | Audio | smbr's audout feeder uses `audoutGetReleasedAudioOutBuffer` and a libnx `threadCreate` feeder; the Oracles ports use SDL3 with toniisound's Switch audio patch. | Kept the direct libnx audout feeder (no SDL3 dependency); the feeder is a libnx `threadCreate` thread, and reclaim uses `audoutGetReleasedAudioOutBuffer`. The SDL patch is unnecessary for this design and remains documented as the reference if SDL3 is added. |
-| Startup/logging | smbr opens its log synchronously in `userAppInit` and uses libnx threads for its engine/audio; DKC opens `debug.log` with `freopen` and registers an `appletHook`; Dusklight uses `userAppInit`/`userAppExit` for `romfsInit`/`nvInitialize` and keeps the heap override. | The game opens `emerald-nx.log` and `port.log` directly, with no newlib writer thread; startup logs each platform step; a libnx exception handler writes the faulting PC/LR/FAR/ESR before exit. |
+| Startup/logging | smbr opens its log synchronously in `userAppInit` and uses libnx threads for its engine/audio; DKC opens `debug.log` with `freopen` and registers an `appletHook`; Dusklight uses `userAppInit`/`userAppExit` for `romfsInit`/`nvInitialize` and writes early exit traces through the FS service. | The game opens `emerald-nx.log` and `port.log` directly, with no newlib writer thread; startup logs each platform step; `boot.log` breadcrumbs go through the FS service before `emerald-nx.log` exists. |
 | Input/touch | smbr configures `NpadStandard`, initializes the touch screen and reads focus state; Oracles maps printed A/B/X/Y. | The Switch host maps libnx pad/touch to the Android host input surface, with A/B/X/Y by letter, ZL/ZR speed and panel-only touch. HOME is not mapped as a game button. |
 | Dock/handheld | Dusklight polls the applet mode per frame; smbr fixes a size at startup. | Per-frame `appletGetOperationMode()` and surface recreation; no restart. |
 | Home/sleep | smbr runs `while (appletMainLoop())` and checks `appletGetFocusState()`; Oracles handles `WILL_ENTER_BACKGROUND` through SDL. DKC1Recomp-NX registers an `appletHook` for exit/focus and persists its SRAM there. | Added `switch_lifecycle.c`: `appletHook` records exit/focus, `appletMainLoop()` runs every frame, focus loss pauses audout, focus return resets clocks. Emerald's saves are written synchronously by its own save code, and settings/logs flush in `CtrPlatform_Shutdown`, so no extra SRAM hook is needed. HOME/exit leaves the loop cleanly. |
@@ -82,13 +82,13 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 
 - Switch: full AArch64 build, NRO, data bundles, single-file pack and package
   pass. Link check accepts only the expected `R_AARCH64_ABS32` sites in
-  `.gamedata`. Final build id `2fd75494a47b18cd`; package 13,358,113 bytes,
-  SHA-256 `C44D3C740560A240906BF3999BA0B1470EF670A602E6E66ED05BCE3515965A7F`.
+  `.gamedata`. Final build id `af53ad9a3954a2e5`; package 13,357,492 bytes,
+  SHA-256 `114ED137C44AD505E53DE803C56599C3FC0835608B8E17EE16B5C5A53EF368CE`.
   `emerald-game.nro` SHA-256
-  `0DE7B18788555A9B9CE77767FF6897F09D4DC62E19FF9FD68F6AA60A3B9D6051`,
+  `5E4559B8B66D3C1E7CA47DD58D036857A975EB8225990DC5F3772A6A99130A0A`,
   `emerald3ds.pak` SHA-256
-  `0F87CB777BC95E072D6CB3092E1D85FD4D11976F5FA69931BD7865193227D1D4`
-  (6,425 entries, 55,899,776 bytes, ABI `c5dc3dc3`), loader SHA-256
+  `40D1FA8CD0E33C0226F24E69B0DF7B74A035808EF59EE21D785D3A09E7B2EF7C`
+  (6,425 entries, 55,899,776 bytes, ABI `898dbec9`), loader SHA-256
   `BCCC26E81AA6F5F7E50A4B16B2ED3D47E775E8C555C2A3629C587A9262A20852`.
 - 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM;
   `emerald3ds.elf` 31,901,540 bytes and `emerald3ds.3dsx` 62,087,788 bytes,

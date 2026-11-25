@@ -18,20 +18,14 @@
 #define APP_DIR "sdmc:/switch/emerald-nx"
 #define LOG_PATH APP_DIR "/emerald-nx.log"
 
-/* libnx's crash path writes the faulting context here, as smbr-nx does.  The
- * report goes to emerald-nx.log before the process is closed, so a first-boot
- * fault is diagnosable from the SD card. */
-u8 __nx_exception_stack[0x8000] __attribute__((aligned(16)));
-u64 __nx_exception_stack_size = sizeof(__nx_exception_stack);
-
-/* stderr may not exist yet when the fault happens (the game opens its log
- * after mounting sdmc).  Write the crash line through the FS service as well,
- * as Dusklight's exit trace does, so a pre-main fault still leaves a file. */
-static void crash_log(const char *line) {
+/* stderr may not exist yet when the game starts; write a breadcrumb through
+ * the FS service, as Dusklight's exit trace does, so the last reached stage
+ * is readable even if stdio never opens. */
+static void early_log(const char *line) {
     FsFileSystem fs;
     FsFile file;
     s64 size = 0;
-    const char *path = "/switch/emerald-nx/crash.log";
+    const char *path = "/switch/emerald-nx/boot.log";
 
     if (R_FAILED(fsOpenSdCardFileSystem(&fs))) {
         return;
@@ -47,40 +41,22 @@ static void crash_log(const char *line) {
     fsFsClose(&fs);
 }
 
-void __libnx_exception_handler(ThreadExceptionDump *ctx) {
-    char line[256];
-
-    snprintf(line, sizeof(line),
-             "Emerald NX CRASH: desc=0x%x PC=%016llx LR=%016llx SP=%016llx "
-             "FAR=%016llx ESR=%08x\n",
-             ctx->error_desc,
-             (unsigned long long)ctx->pc.x,
-             (unsigned long long)ctx->lr.x,
-             (unsigned long long)ctx->sp.x,
-             (unsigned long long)ctx->far.x,
-             ctx->esr);
-    crash_log(line);
-    fprintf(stderr, "%s", line);
-    fflush(stderr);
-    svcExitProcess();
-}
-
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
 
     /* Breadcrumbs through the FS service, before stdio needs a mounted sdmc:
      * if the process dies before the log exists, these say how far it got. */
-    crash_log("Emerald NX: main entered\n");
+    early_log("Emerald NX: main entered\n");
     fsdevMountSdmc();
-    crash_log("Emerald NX: sdmc mounted\n");
+    early_log("Emerald NX: sdmc mounted\n");
     mkdir("sdmc:/switch", 0777);
     mkdir(APP_DIR, 0777);
     mkdir(APP_DIR "/data", 0777);
 
     if (freopen(LOG_PATH, "w", stderr)) {
         setvbuf(stderr, NULL, _IOLBF, 0);
-        crash_log("Emerald NX: emerald-nx.log opened\n");
+        early_log("Emerald NX: emerald-nx.log opened\n");
     }
     fprintf(stderr, "Emerald NX: starting (applet %d)\n", appletGetAppletType());
     fflush(stderr);
