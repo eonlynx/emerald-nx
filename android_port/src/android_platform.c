@@ -144,11 +144,19 @@ void CtrLock_Unlock(CtrLock *lock) { LightLock_Unlock((LightLock *)lock); }
 bool CtrPlatform_Init(void)
 {
     CtrLog_Init();
+    fprintf(stderr, "platform: log initialized\n");
+    fflush(stderr);
     sInitialized = true;
     sSeenResumes = AndroidHost_ResumeCount();
+    fprintf(stderr, "platform: resume count\n");
+    fflush(stderr);
     CtrInput_Clear();
+    fprintf(stderr, "platform: input cleared\n");
+    fflush(stderr);
     sFrames = 0;
     sLastFrame = CtrPlatform_Milliseconds();
+    fprintf(stderr, "platform: first log\n");
+    fflush(stderr);
     CtrLog_Write(CTR_LOG_BOOT, "Android platform, files at %s", AndroidHost_FilesDir());
     CtrLog_Write(CTR_LOG_BOOT, "platform init: filesystem");
     if (!CtrFs_Init())

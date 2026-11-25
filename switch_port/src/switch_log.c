@@ -41,8 +41,11 @@ void CtrLog_Init(void)
     fflush(stderr);
     rename(LOG_DIR "port.log", LOG_DIR "port-prev.log");
     sFile = fopen(LOG_DIR "port.log", "w");
-    sFileOn = sFile != NULL;
-    fprintf(stderr, "Emerald NX: log started (file %s)\n", sFileOn ? "on" : "off");
+    /* stderr is already emerald-nx.log: the second file and its pthread
+     * mutex are not needed during bring-up.  Keep the file handle only for
+     * CtrLog_Close to release. */
+    sFileOn = false;
+    fprintf(stderr, "Emerald NX: log started (stderr only)\n");
     fflush(stderr);
 }
 
