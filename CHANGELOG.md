@@ -21,6 +21,10 @@ in the same tree and keep building.
 - Lifecycle: `appletMainLoop` and an `appletHook` handle HOME, exit, focus
   loss and return; audio pauses while the HOME menu or sleep owns the screen,
   and frame clocks reset on return.
+- Loader: the game image's instruction cache is invalidated after its RX
+  permissions exist, following smbr-nx and Dusklight, instead of while the
+  freshly mapped pages are still inaccessible. The loader also logs each
+  mapping step so a failed boot can be located without a debugger.
 - Options: BATTLE SPEED with AUTO follows the engine's setting, and the MAP
   can show progressive visited-town markers or the classic display.
   Cherry-picked from Proginji2000's branches; no story or event changes.

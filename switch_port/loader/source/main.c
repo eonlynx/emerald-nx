@@ -97,11 +97,12 @@ static void *find_low_gap(size_t size) {
 
 static void *map_low(Handle process, void *source, size_t size, u32 permission,
                      bool apply_permission, const char *what) {
-    armDCacheFlush(source, size);
-
     if ((size & (PAGE - 1)) != 0 || size == 0) {
         fail("loader: %s size is not page aligned", what);
     }
+
+    log_line("loader: mapping %s (%" PRIu64 " bytes)...", what, (uint64_t)size);
+    armDCacheFlush(source, size);
 
     virtmemLock();
     void *destination = find_low_gap(size);
@@ -110,6 +111,7 @@ static void *map_low(Handle process, void *source, size_t size, u32 permission,
     if (!destination || !reservation) {
         fail("loader: no low address gap for %s (%" PRIu64 " bytes)", what, (uint64_t)size);
     }
+    log_line("loader: %s destination %p", what, destination);
 
     Result rc = svcMapProcessCodeMemory(process, (u64)(uintptr_t)destination,
                                         (u64)(uintptr_t)source, size);
@@ -122,7 +124,10 @@ static void *map_low(Handle process, void *source, size_t size, u32 permission,
             fail("loader: svcSetProcessMemoryPermission(%s) failed: 0x%08x", what, rc);
         }
     }
-    armICacheInvalidate(destination, size);
+    /* Code pages are not readable until set_nro_permissions has given them
+     * their final permission, so the game image is invalidated there, after
+     * the RX ranges exist.  The heap is data and needs no instruction cache
+     * maintenance. */
     log_line("loader: %s at %p (%" PRIu64 " bytes, perm %s)", what, destination,
              (uint64_t)size, apply_permission ? "applied" : "per segment");
     return destination;
@@ -297,8 +302,10 @@ int main(int argc, char **argv) {
      * W -> X transition on code memory.  Set text RX/rodata R/data RW
      * directly, as hbloader does. */
     void *game_base = map_low(process, image, image_size, 0, false, "game image");
+    log_line("loader: applying NRO page permissions...");
     set_nro_permissions(process, game_base, &header, image_size);
 
+    log_line("loader: allocating game heap...");
     void *heap_source = aligned_alloc(PAGE, (size_t)HEAP_SIZE);
     if (!heap_source) {
         fail("loader: out of memory for game heap");
