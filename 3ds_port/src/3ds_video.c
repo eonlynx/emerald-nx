@@ -7017,6 +7017,7 @@ fail:
     return false;
 }
 
+int CtrVideo_SingleScreen(void) { return 0; }
 void CtrVideo_Bind(CtrVideoMemory memory)
 {
     sMemory = memory;
@@ -8459,7 +8460,7 @@ static void WindowCompose(void)
 
 int CtrVideo_BottomPictureY(int y)
 {
-    y -= CTR_BOTTOM_WIN_Y;
+    y -= CTR_BOTTOM_WIN_SCREEN_Y;
     return y >= 0 && y < 160 ? y : -1;
 }
 

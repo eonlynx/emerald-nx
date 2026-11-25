@@ -166,6 +166,16 @@ static float GetMovementProgress(const struct ObjectEvent *obj, const struct Spr
     int speed, timer, stepLen;
     float t;
 
+    /* A link room's player steps by itself (overworld.c,
+     * MovementStatusHandler_TryAdvanceScript): a pixel a frame, its
+     * directionSequenceIndex counting the 16 down. */
+    if (VoxelWorld_IsLinkPlayerObject((u8)(obj - gObjectEvents)))
+    {
+        int left = (int)(s8)obj->directionSequenceIndex;
+
+        return left > 0 && left <= VOXEL_PIXELS_PER_TILE
+             ? (float)(VOXEL_PIXELS_PER_TILE - left) / VOXEL_PIXELS_PER_TILE : 1.0f;
+    }
     /* Idle: ShiftStillObjectEventCoords has made previous == current. */
     if (!obj->singleMovementActive && !obj->heldMovementActive)
         return 1.0f;
@@ -216,7 +226,7 @@ static float ObjectDeck(const struct ObjectEvent *obj, float worldX, float world
 
 float VoxelEntities_PlayerDeck(void)
 {
-    const struct ObjectEvent *obj = &gObjectEvents[gPlayerAvatar.objectEventId];
+    const struct ObjectEvent *obj = &gObjectEvents[VoxelWorld_PlayerObjectId()];
     float x = 0.0f, z = 0.0f;
 
     if (!obj->active || obj->spriteId >= MAX_SPRITES)
@@ -232,7 +242,7 @@ float VoxelEntities_PlayerDeck(void)
 
 float VoxelEntities_PlayerGround(void)
 {
-    const struct ObjectEvent *obj = &gObjectEvents[gPlayerAvatar.objectEventId];
+    const struct ObjectEvent *obj = &gObjectEvents[VoxelWorld_PlayerObjectId()];
     float x = 0.0f, z = 0.0f;
 
     if (!obj->active || obj->spriteId >= MAX_SPRITES)
@@ -253,7 +263,7 @@ float VoxelEntities_PlayerGround(void)
 
 void VoxelEntities_GetPlayerWorldPos(float *worldX, float *worldZ)
 {
-    const struct ObjectEvent *obj = &gObjectEvents[gPlayerAvatar.objectEventId];
+    const struct ObjectEvent *obj = &gObjectEvents[VoxelWorld_PlayerObjectId()];
     float x = 0.0f, z = 0.0f;
 
     if (!obj->active || obj->spriteId >= MAX_SPRITES)
@@ -690,6 +700,142 @@ static float SpriteScale(const struct Sprite *sprite)
 /* How far the cards lie down this update (VoxelCamera.lay), 0 upright. */
 static float sLay;
 
+/*
+ * 3D SPRITES (OPTIONS, key voxel_sprite_depth): a walker's card one sprite
+ * pixel deep, as if its drawing were cut out of a board a voxel thick. The
+ * card's face stays where it was - every rule above that places it is kept -
+ * and the board goes back from it, away from the camera. Its edges are the
+ * drawing's own outline: each opaque pixel with a transparent one (or the
+ * picture's edge) above it has a top, beside it a side, in its own colour,
+ * runs of them one quad. No bottoms and no back: the camera looks down on
+ * the board from in front. Upright cards only (not while the swoop lays
+ * them down), objects only (not the field effects), and never so many that
+ * a card after it loses its room in the buffer.
+ *
+ * The picture is read from the atlas (DecodeSlot wrote it): the alpha bit
+ * of each texel is whether the pixel is drawn.
+ */
+#define VOXEL_DEPTH_SIDE_SHADE 0.72f
+/* How far past its pixels a face reaches, and how far inside them it reads,
+ * in sprite pixels (EmitDepth). */
+#define VOXEL_DEPTH_OVERLAP 0.2f
+#define VOXEL_DEPTH_INSET 0.25f
+int CtrSettings_GetInt(const char *key, int fallback);   /* 3ds_platform.h */
+static const uint16_t *sDepthAtlas;
+static bool sDepthCards;
+/* How deep, in sprite pixels (the option's 1, 2 or 3). */
+static int sDepthPixels = 1;
+
+static bool DepthOpaque(unsigned baseX, unsigned baseY, int x, int y, int w, int rows)
+{
+    if (x < 0 || y < 0 || x >= w || y >= rows)
+        return false;
+    return (sDepthAtlas[CtrVideo_Texel(baseX + (unsigned)x, baseY + (unsigned)y, VOXEL_SPRITE_ATLAS_W)] & 1u) != 0;
+}
+
+static void EmitDepth(VoxelBuilder *builder, const VoxelSpriteSlot *slot, unsigned index,
+                      float ax, float az, float bx, float bz, float lift, float height, int rows,
+                      float rightX, float rightZ, float u0, float u1, float v0, float v1, float shade, float scale)
+{
+    unsigned baseX = (index % VOXEL_SPRITE_COLUMNS) * VOXEL_SPRITE_SLOT_DIM;
+    unsigned baseY = (index / VOXEL_SPRITE_COLUMNS) * VOXEL_SPRITE_SLOT_DIM;
+    int w = slot->atlasWidth;
+    float len = sqrtf(rightX * rightX + rightZ * rightZ);
+    /* One sprite pixel back, away from the camera. */
+    float depth = (float)sDepthPixels * scale / VOXEL_PIXELS_PER_TILE;
+    float backX = len > 0.0f ? rightZ / len * depth : 0.0f, backZ = len > 0.0f ? -rightX / len * depth : 0.0f;
+    float side = shade * VOXEL_DEPTH_SIDE_SHADE;
+    /*
+     * The faces only meet along edges, none sharing a vertex with the card
+     * or with each other: rasterised apart, the floor showed through the
+     * seams. Each face reaches a fraction of a pixel past its own pixels -
+     * along the edge, and forward into the card - and reads its texels a
+     * little inside them, so its overlap never samples a transparent
+     * neighbour and the alpha test never cuts it short.
+     */
+    float pixelX = 1.0f / (float)w, pixelY = 1.0f / (float)rows;
+    float grow = VOXEL_DEPTH_OVERLAP;
+    float fwdX = len > 0.0f ? -rightZ / len * grow * scale / VOXEL_PIXELS_PER_TILE : 0.0f;
+    float fwdZ = len > 0.0f ? rightX / len * grow * scale / VOXEL_PIXELS_PER_TILE : 0.0f;
+    /* Room kept for the cards still to come: one quad each. */
+    unsigned keep = VOXEL_SPRITE_SLOTS * 6u;
+
+    if (rows <= 0 || w <= 0)
+        return;
+#define DEPTH_X(s) (ax + (bx - ax) * (s))
+#define DEPTH_Z(s) (az + (bz - az) * (s))
+#define DEPTH_Y(r) (lift + height * (1.0f - (float)(r) / (float)rows))
+#define DEPTH_U(c) (u0 + (u1 - u0) * (c) / (float)w)
+#define DEPTH_V(r) (v0 + (v1 - v0) * (r) / (float)rows)
+    /* Tops: in each row, runs of drawn pixels with nothing drawn over them. */
+    for (int y = 0; y < rows; ++y)
+        for (int x = 0; x < w;)
+        {
+            int end;
+            float s0, s1, ty, v;
+
+            if (!DepthOpaque(baseX, baseY, x, y, w, rows) || DepthOpaque(baseX, baseY, x, y - 1, w, rows))
+            {
+                ++x;
+                continue;
+            }
+            for (end = x + 1; end < w && DepthOpaque(baseX, baseY, end, y, w, rows)
+                              && !DepthOpaque(baseX, baseY, end, y - 1, w, rows); ++end)
+                ;
+            if (builder->count + 6 + keep > builder->capacity)
+                return;
+            s0 = (float)x / (float)w - grow * pixelX;
+            s1 = (float)end / (float)w + grow * pixelX;
+            ty = DEPTH_Y(y);
+            v = DEPTH_V(y + 0.5f);
+            VoxelBuilder_Quad(builder,
+                &(VoxelVertex){DEPTH_X(s0) + fwdX, ty, DEPTH_Z(s0) + fwdZ, DEPTH_U(x + VOXEL_DEPTH_INSET), v, shade},
+                &(VoxelVertex){DEPTH_X(s1) + fwdX, ty, DEPTH_Z(s1) + fwdZ, DEPTH_U(end - VOXEL_DEPTH_INSET), v, shade},
+                &(VoxelVertex){DEPTH_X(s1) + backX, ty, DEPTH_Z(s1) + backZ, DEPTH_U(end - VOXEL_DEPTH_INSET), v, shade},
+                &(VoxelVertex){DEPTH_X(s0) + backX, ty, DEPTH_Z(s0) + backZ, DEPTH_U(x + VOXEL_DEPTH_INSET), v, shade});
+            x = end;
+        }
+    /* Sides: in each column, runs of drawn pixels with nothing drawn left
+     * (dir -1) or right (dir 1) of them. */
+    for (int dir = -1; dir <= 1; dir += 2)
+        for (int x = 0; x < w; ++x)
+            for (int y = 0; y < rows;)
+            {
+                int end;
+                float s, u;
+
+                if (!DepthOpaque(baseX, baseY, x, y, w, rows) || DepthOpaque(baseX, baseY, x + dir, y, w, rows))
+                {
+                    ++y;
+                    continue;
+                }
+                for (end = y + 1; end < rows && DepthOpaque(baseX, baseY, x, end, w, rows)
+                                  && !DepthOpaque(baseX, baseY, x + dir, end, w, rows); ++end)
+                    ;
+                if (builder->count + 6 + keep > builder->capacity)
+                    return;
+                s = (float)(dir < 0 ? x : x + 1) / (float)w;
+                u = DEPTH_U(x + 0.5f);
+                {
+                    /* Up past its top and down past its foot by the overlap. */
+                    float yb = DEPTH_Y(end) - grow * pixelY * height, yt = DEPTH_Y(y) + grow * pixelY * height;
+                    float vb = DEPTH_V(end - VOXEL_DEPTH_INSET), vt = DEPTH_V(y + VOXEL_DEPTH_INSET);
+
+                    VoxelBuilder_Quad(builder,
+                        &(VoxelVertex){DEPTH_X(s) + fwdX, yb, DEPTH_Z(s) + fwdZ, u, vb, side},
+                        &(VoxelVertex){DEPTH_X(s) + backX, yb, DEPTH_Z(s) + backZ, u, vb, side},
+                        &(VoxelVertex){DEPTH_X(s) + backX, yt, DEPTH_Z(s) + backZ, u, vt, side},
+                        &(VoxelVertex){DEPTH_X(s) + fwdX, yt, DEPTH_Z(s) + fwdZ, u, vt, side});
+                }
+                y = end;
+            }
+#undef DEPTH_X
+#undef DEPTH_Z
+#undef DEPTH_Y
+#undef DEPTH_U
+#undef DEPTH_V
+}
+
 static void EmitBillboard(VoxelBuilder *builder, const VoxelSpriteSlot *slot, unsigned index,
                           float cx, float cz, float offX, float offZ, float rise, float deck,
                           float rightX, float rightZ, float stretch, float shade, float scale)
@@ -738,6 +884,9 @@ static void EmitBillboard(VoxelBuilder *builder, const VoxelSpriteSlot *slot, un
         &(VoxelVertex){bx, lift,        bz,        u1, v1, shade},
         &(VoxelVertex){bx, lift + topY, bz + topZ, u1, v0, shade},
         &(VoxelVertex){ax, lift + topY, az + topZ, u0, v0, shade});
+    if (sDepthCards && sDepthAtlas != NULL && sLay == 0.0f)
+        EmitDepth(builder, slot, index, ax, az, bx, bz, lift, height, rows, rightX, rightZ, u0, u1, v0, v1,
+                  shade, scale);
 }
 
 /*
@@ -1426,6 +1575,10 @@ static int EffectOwner(const struct Sprite *sprite, const VoxelObjectCard *objec
 unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelCamera *camera,
                             VoxelBuilder *shadows, VoxelBuilder *reflections)
 {
+    /* 3D SPRITES: the atlas the cards' outlines are read from, or none. */
+    sDepthPixels = CtrSettings_GetInt("voxel_sprite_depth", 0);
+    sDepthAtlas = sDepthPixels > 0 ? atlas : NULL;
+
     /* The billboards turn about the vertical axis to face the camera. With the
      * default yaw of 0 this is (1,0,0), the same plane the reference uses.
      * The card stands upright and the camera looks down on it, so on screen
@@ -1623,8 +1776,8 @@ unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelC
 
         /* Where it will be drawn, near enough to tell whether the camera
          * can see it (the placement below). */
-        reference = gPlayerAvatar.objectEventId < OBJECT_EVENTS_COUNT
-                  ? &objects[gPlayerAvatar.objectEventId] : NULL;
+        reference = VoxelWorld_PlayerObjectId() < OBJECT_EVENTS_COUNT
+                  ? &objects[VoxelWorld_PlayerObjectId()] : NULL;
         if (effect->tile)
         {
             float cx = (float)(sprite->data[1] - MAP_OFFSET) + 0.5f;
@@ -1758,9 +1911,13 @@ unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelC
             EmitReflection(reflections, &sSlots[i], i, card->worldX, card->worldZ,
                            rightX, rightZ, stretch);
         unsigned first = builder->count;
+        /* The walkers' cards only take depth (3D SPRITES); the player's
+         * x-ray pass draws its first quad, the face, whatever follows it. */
+        sDepthCards = sDepthAtlas != NULL;
         EmitBillboard(builder, &sSlots[i], i, card->worldX + 0.5f, card->worldZ + 0.5f,
                       0.0f, 0.0f, rise, card->deck, rightX, rightZ, stretch, card->shade * dusk, 1.0f);
-        if (i == gPlayerAvatar.objectEventId && builder->count == first + 6)
+        sDepthCards = false;
+        if (i == VoxelWorld_PlayerObjectId() && builder->count >= first + 6)
             sPlayerVertexFirst = (int)first;
     }
 
@@ -1782,8 +1939,8 @@ unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelC
         {
             /* Placed from the player as a decal is: its picture's bottom
              * edge 8 px under the middle of the player's tile. */
-            reference = gPlayerAvatar.objectEventId < OBJECT_EVENTS_COUNT
-                      ? &objects[gPlayerAvatar.objectEventId] : NULL;
+            reference = VoxelWorld_PlayerObjectId() < OBJECT_EVENTS_COUNT
+                      ? &objects[VoxelWorld_PlayerObjectId()] : NULL;
             if (reflections != NULL && reference != NULL && reference->drawn)
                 EmitClouds(reflections, &sSlots[effect->slot], effect->slot, camera,
                            reference->worldX + 0.5f
@@ -1802,9 +1959,9 @@ unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelC
             float cz = (float)(sprite->data[2] - MAP_OFFSET) + 0.5f;
             float shade = 1.0f;
 
-            if (gPlayerAvatar.objectEventId < OBJECT_EVENTS_COUNT
-             && objects[gPlayerAvatar.objectEventId].drawn)
-                shade = objects[gPlayerAvatar.objectEventId].shade;
+            if (VoxelWorld_PlayerObjectId() < OBJECT_EVENTS_COUNT
+             && objects[VoxelWorld_PlayerObjectId()].drawn)
+                shade = objects[VoxelWorld_PlayerObjectId()].shade;
 
             if (VoxelWorld_InstanceCount() > 0)
             {
@@ -1832,8 +1989,8 @@ unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelC
         }
         /* On its own: placed from the player, whose feet are on the centre of
          * its tile and whose picture ends at the tile's bottom edge. */
-        reference = gPlayerAvatar.objectEventId < OBJECT_EVENTS_COUNT
-                  ? &objects[gPlayerAvatar.objectEventId] : NULL;
+        reference = VoxelWorld_PlayerObjectId() < OBJECT_EVENTS_COUNT
+                  ? &objects[VoxelWorld_PlayerObjectId()] : NULL;
         if (reference == NULL || !reference->drawn)
             continue;
         {
@@ -1876,9 +2033,13 @@ unsigned VoxelEntities_Emit(VoxelBuilder *builder, uint16_t *atlas, const VoxelC
             cz = reference->worldZ + 0.5f + (base - reference->base) / VOXEL_PIXELS_PER_TILE;
             if (fabsf(cx - camera->targetX) > 24.0f || fabsf(cz - camera->targetZ) > 24.0f)
                 continue;
+            /* A visible wild Pokemon is a walker as the objects are: 3D
+             * SPRITES gives its card depth too. */
+            sDepthCards = sDepthAtlas != NULL && VisibleWild_IsSprite((u8)(sprite - gSprites));
             EmitBillboard(builder, &sSlots[effect->slot], effect->slot, cx, cz, 0.0f, 0.0f,
                           -sprite->y2 * pixel, reference->deck, rightX, rightZ, stretch,
                           reference->shade, SpriteScale(sprite));
+            sDepthCards = false;
         }
     }
     return updates;

@@ -15,7 +15,14 @@
  * VRAM: on an Old 3DS the compositor and the voxel overworld need all of it.
  */
 #define CTR_BOTTOM_WIDTH 320
+#ifdef PLATFORM_ANDROID
+/* The Ayn Thor's bottom display is 1240x1080: 320x280 covers it. */
+#define CTR_BOTTOM_HEIGHT 280
+#else
 #define CTR_BOTTOM_HEIGHT 240
+#endif
+/* Rows over the 3DS's 240: the views laid out for 240 sit centred in them. */
+#define CTR_BOTTOM_EXTRA (CTR_BOTTOM_HEIGHT - 240)
 
 /* Native side (libctru): copy columns [x0, x1) of the canvas to the screen. */
 void CtrBottom_Blit(const uint16_t *canvas, int x0, int x1);
@@ -42,6 +49,14 @@ uint16_t CtrBottom_InjectedKeys(void);
 /* The player's keys as the game should see them: none while the button
  * column has the X focus, or until the keys that left it are let go. */
 uint16_t CtrBottom_FilterKeys(uint16_t held);
+/* A single-screen device (CtrVideo_SingleScreen): whether the bottom screen
+ * is to be shown, as a window over the top one - while START (X's part
+ * there) has given it the buttons, or a game screen runs in it. */
+bool CtrBottom_PanelShown(void);
+/* On a single screen, the game's screens that stay on the top one as on the
+ * GBA instead of going to the bottom screen: the PC's boxes and what they
+ * open, and battles with their menus, bag and party. */
+bool CtrBottom_Vanilla(void);
 #ifdef CTR_TEST_SWOOP
 void CtrBottom_TestSwoop(unsigned step);
 #endif

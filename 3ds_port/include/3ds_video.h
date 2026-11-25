@@ -15,7 +15,20 @@ bool CtrVideo_TryVoxelAnimUpload(void);
 void CtrVideo_CopiesBegin(void);
 void CtrVideo_CopiesEnd(void);
 
+#ifdef PLATFORM_ANDROID
+/* gba/defines.h DISPLAY_WIDTH: chosen at launch from the top display's shape
+ * (AndroidVideo_ChooseWidth), a whole number of tiles in [MIN, MAX]. */
+extern unsigned short gDisplayWidth;
+#define CTR_GAME_WIDTH ((int)gDisplayWidth)
+#define CTR_GAME_WIDTH_MIN 400
+#define CTR_GAME_WIDTH_MAX 448
+#else
 #define CTR_GAME_WIDTH 400
+#endif
+/* No second display (Android, a phone): the bottom screen is a window over
+ * the top one (CtrBottom_PanelShown), and the PC's boxes are on the top
+ * screen as on the GBA. Never on a 3DS. */
+int CtrVideo_SingleScreen(void);
 #define CTR_GAME_HEIGHT 240
 
 /*
@@ -285,6 +298,11 @@ void CtrVideo_SetFieldLight(bool on, int x, int y, int radius);
  * window 3ds_bottom_ui.c frames. Everything else there is its canvas. */
 #define CTR_BOTTOM_WIN_X 40
 #define CTR_BOTTOM_WIN_Y 40
+/* Its row on the screen, which is what the picture and the touches use. The
+ * views - the window's frame among them - are laid out for the 3DS's 240 rows
+ * and drawn half a taller canvas's extra rows lower (3ds_bottom.h,
+ * CTR_BOTTOM_EXTRA: 40 on the Thor's 280, none on the 3DS). */
+#define CTR_BOTTOM_WIN_SCREEN_Y (CTR_BOTTOM_WIN_Y + CTR_BOTTOM_EXTRA / 2)
 /* Whether the last frame drew a game screen into the bottom screen's window:
  * the PokéNav, the bag, the party menu, the Pokédex, the boxes. */
 bool CtrVideo_BottomInUse(void);
