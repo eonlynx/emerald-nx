@@ -191,10 +191,16 @@ build/switch_image.specs: $(DEVKITPRO)/libnx/switch.specs $(SWITCH_PORT)/switch.
 	sed 's|%:getenv(DEVKITPRO /libnx/switch.ld)|build/emerald_switch_image.ld|' $< > $@
 
 build/gamedata_image.elf: $(LINK_OBJS) build/emerald_switch_image.ld build/switch_image.specs
-	"$(CC)" $(LDFLAGS_IMAGE) -Wl,--emit-relocs $(LINK_OBJS) $(LIBS) -o $@
+	"$(CC)" $(LDFLAGS_IMAGE) -Wl,--emit-relocs $(LINK_OBJS) $(LIBS) -o $@ 2> build/link-image.err
+	@if grep -E 'error|undefined reference|multiple definition' build/link-image.err \
+		| grep -v 'R_AARCH64_ABS32' | grep -q .; then \
+		cat build/link-image.err; exit 1; fi
 
 $(TARGET).elf: $(LINK_OBJS) build/emerald_switch_release.ld build/switch_release.specs
-	"$(CC)" $(LDFLAGS) $(LINK_OBJS) $(LIBS) -o $@
+	"$(CC)" $(LDFLAGS) $(LINK_OBJS) $(LIBS) -o $@ 2> build/link-release.err
+	@if grep -E 'error|undefined reference|multiple definition' build/link-release.err \
+		| grep -v 'R_AARCH64_ABS32' | grep -q .; then \
+		cat build/link-release.err; exit 1; fi
 
 # The linker creates the map as a byproduct of the release link.
 build/$(TARGET).map: $(TARGET).elf ;
