@@ -59,34 +59,30 @@ void CtrLog_Close(void)
 
 void CtrLog_Write(CtrLogCategory category, const char *format, ...)
 {
-    char line[1024];
     va_list args;
-    int prefix, length;
     unsigned cat = (unsigned)category < sizeof(sTags) / sizeof(sTags[0]) ? (unsigned)category : 6;
-    uint64_t ms = CtrPlatform_Milliseconds();
+    /* Before CtrLog_Init there is no file and no reason to touch the clock. */
+    const uint64_t ms = sFileOn ? CtrPlatform_Milliseconds() : 0;
 
-    prefix = snprintf(line, sizeof(line), "[%6llu.%03llu] [%s] ", (unsigned long long)(ms / 1000),
-                      (unsigned long long)(ms % 1000), sTags[cat]);
+    fprintf(stderr, "[%6llu.%03llu] [%s] ", (unsigned long long)(ms / 1000),
+            (unsigned long long)(ms % 1000), sTags[cat]);
     va_start(args, format);
-    length = vsnprintf(line + prefix, sizeof(line) - (size_t)prefix - 1, format, args);
+    vfprintf(stderr, format, args);
     va_end(args);
-    if (length < 0)
-        return;
-    length += prefix;
-    if (length > (int)sizeof(line) - 2)
-        length = (int)sizeof(line) - 2;
-    while (length > 0 && line[length - 1] == '\n')
-        length--;
-    line[length] = 0;
-    fprintf(stderr, "%s\n", line + prefix);
+    fputc('\n', stderr);
     fflush(stderr);
+
     if (sFileOn)
     {
-        line[length++] = '\n';
         pthread_mutex_lock(&sLock);
         if (sFile)
         {
-            fwrite(line, 1, (size_t)length, sFile);
+            fprintf(sFile, "[%6llu.%03llu] [%s] ", (unsigned long long)(ms / 1000),
+                    (unsigned long long)(ms % 1000), sTags[cat]);
+            va_start(args, format);
+            vfprintf(sFile, format, args);
+            va_end(args);
+            fputc('\n', sFile);
             fflush(sFile);
         }
         pthread_mutex_unlock(&sLock);

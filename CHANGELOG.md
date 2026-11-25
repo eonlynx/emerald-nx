@@ -31,7 +31,9 @@ in the same tree and keep building.
 - Logging: Switch writes `port.log` synchronously instead of starting a
   newlib writer thread, and startup logs each platform step to
   `emerald-nx.log`. This follows the single-threaded logging in smbr-nx and
-  keeps a failed first boot diagnosable from the SD card. Startup
+  keeps a failed first boot diagnosable from the SD card. Early lines use
+  `vfprintf` directly and do not read the clock before `CtrLog_Init`, avoiding
+  a large stack formatting path before the platform is initialized. Startup
   breadcrumbs go to `boot.log` through the FS service, so they exist before
   `emerald-nx.log` can be opened.
 - Timing/threads: Switch reads `armGetSystemTick` directly (19.2 MHz), as
