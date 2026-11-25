@@ -15,8 +15,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TREE="${TREE:-$ROOT/build/upstream/3ds_port}"
 JOBS="${JOBS:-2}"
-PYTHON="${PYTHON:-C:/Users/Felipe/AppData/Local/Programs/Python/Python313/python.exe}"
-export DEVKITPRO="${DEVKITPRO:-C:/devkitPro}"
+PYTHON="${PYTHON:-python3}"
+export DEVKITPRO="${DEVKITPRO:-/opt/devkitpro}"
 export DEVKITARM="${DEVKITARM:-$DEVKITPRO/devkitARM}"
 export DEVKITA64="${DEVKITA64:-$DEVKITPRO/devkitA64}"
 export VOXEL_JOBS=1
@@ -64,4 +64,3 @@ echo
 echo "Done: $DIST/switch/emerald-nx/"
 echo "Zip:  $ROOT/switch_port/dist/emerald-nx.zip"
 echo "Copy the zip's switch/ folder to the SD card root."
-

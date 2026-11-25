@@ -1,9 +1,13 @@
 # Install and update Emerald 3DS
 
 These instructions apply to the latest
-[release](https://github.com/ZallaxDev/pokeemerald-3Ds-dualscreen/releases/latest).
+[release](https://github.com/ZallaxDev/emerald-3ds/releases/latest).
 Download the ZIP attached to the release, not the automatically generated
 source-code archives.
+
+> **Nintendo Switch:** this page covers Emerald 3DS. The native Switch port,
+> **Emerald NX**, installs from `emerald-nx.zip` at the SD card root and is
+> documented in the root [README](../README.md#install).
 
 The download **does not contain the game**. You need a clean dump of your own
 Pokémon Emerald (USA, Europe), Pokémon Esmeralda (Spain), Pokémon Émeraude

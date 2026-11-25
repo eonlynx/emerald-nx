@@ -1,5 +1,12 @@
 # Architecture
 
+> This page describes the Nintendo 3DS backend. **Emerald NX** runs the same
+> game units and bridge on the Switch with a native libnx host layer, the
+> shared Android GLES3 renderer and a two-stage low-address loader; its
+> subsystem map is in [switch_port/README.md](../switch_port/README.md) and
+> [switch_port/SWITCH_PORT_PLAN.md](../switch_port/SWITCH_PORT_PLAN.md). The
+> Android port reuses the same game units through `android_port/`.
+
 Emerald 3DS runs the pokeemerald game code natively on the 3DS's ARM11. The
 game keeps its own main loop (`AgbMain`), its GBA register model and its data;
 the port supplies what the GBA hardware did, through a small bridge.

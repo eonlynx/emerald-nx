@@ -61,9 +61,12 @@ switch_port/dist/emerald-nx.zip
 Switch executables. To rebuild from an empty object directory:
 
 ```sh
-rm -rf build/upstream/3ds_port/build
-bash switch_port/build_switch.sh
+CLEAN_BUILD=1 bash switch_port/build_switch.sh
 ```
+
+`JOBS=N`, `PYTHON=...` and `TREE=...` override the defaults; inside
+devkitPro's MSYS2 shell, `PYTHON` can be the Windows Python path. The package
+is generated output and must not be committed.
 
 Static layout audits (run from the bootstrapped tree's `3ds_port/`):
 
@@ -158,4 +161,3 @@ Checklist:
 
 No ROMs, saves, extracted assets or other protected content belong in this
 repository.
-

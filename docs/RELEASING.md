@@ -129,6 +129,28 @@ always attach `web-manifest.json`. Consequences:
   `Emerald3DS.3dsx`). An English and a Portuguese pack come from the same ROM:
   the site tells them apart by the pack's data ABI.
 
+## Emerald NX (Nintendo Switch)
+
+The Switch package is built separately with `bash switch_port/build_switch.sh`
+and attached as `emerald-nx.zip`. It is an SD-root archive:
+
+```
+switch/emerald-nx/
+    emerald-nx.nro
+    emerald-game.nro
+    data/
+    README.txt
+    licences/
+```
+
+Unlike the 3DS assets, it ships the generated `data/` directory so it can run
+without a separate builder. It still contains no ROM or save file. Attach it
+next to the 3DS assets when the release covers both platforms, and include its
+SHA-256 in `SHA256SUMS.txt`. The package is not produced by
+`tools/build_release.py`; build and test it on hardware before publishing, and
+record the published hashes in
+[the Switch audit](../switch_port/FINAL_AUDIT_2026-11-25.md).
+
 ## Languages
 
 One release covers every language: there is never a release per language.

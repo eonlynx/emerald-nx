@@ -41,8 +41,8 @@ For collaborators with Write access, the following example uses `origin` for thi
 repository. Replace the example branch name with your own.
 
 ```sh
-git clone https://github.com/ZallaxDev/pokeemerald-3Ds-dualscreen.git
-cd pokeemerald-3Ds-dualscreen
+git clone https://github.com/ZallaxDev/emerald-3ds.git
+cd emerald-3ds
 git fetch origin
 git switch -c feature/alex-touch-menu origin/integration
 ```
@@ -93,7 +93,7 @@ these rules. Prefer working branches and test the merged result before pushing.
 
 On GitHub, choose **Pull requests -> New pull request** and explicitly select:
 
-- **base repository:** `ZallaxDev/pokeemerald-3Ds-dualscreen`;
+- **base repository:** `ZallaxDev/emerald-3ds`;
 - **base:** `integration` (GitHub may initially suggest `main`);
 - **compare:** your working branch.
 
@@ -183,7 +183,7 @@ with Write or an administrator handles its review and merge; no approving review
 is mandatory.
 
 The current rules can be inspected on the repository's
-[Rules page](https://github.com/ZallaxDev/pokeemerald-3Ds-dualscreen/rules).
+[Rules page](https://github.com/ZallaxDev/emerald-3ds/rules).
 
 ## Guía rápida en español
 
@@ -243,13 +243,35 @@ Si no tienes Write, utiliza un fork y envía el PR al repositorio original con
 fusionarlo. Si está bloqueado, revisa su destino y los conflictos; para promover
 a `dev` o `main`, contacta con el administrador.
 
+## Platforms and builds
+
+All three ports share the bootstrapped tree from `python tools/bootstrap.py`.
+
+- **Nintendo 3DS** (the original port): from `build/upstream/3ds_port`, run
+  `make -j8 PYTHON=python3` for `emerald3ds.3dsx`, and `make verify` for the
+  host tests and link audit. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+- **Nintendo Switch** (Emerald NX): `bash switch_port/build_switch.sh` builds
+  the loader, the game NRO and the SD-ready package under
+  `switch_port/dist/`. The save-layout and overlay audits are described in
+  [switch_port/README.md](switch_port/README.md). The package is generated
+  output and is never committed.
+- **Android**: `android_port/tools/build.sh` (or `--release`) needs the
+  Android SDK and NDK plus a Python with Pillow and libclang bindings. The
+  Android build is independent of the devkitPro targets, but it uses the same
+  shared game and bridge sources.
+
+If a change touches shared game or bridge code, build at least the 3DS and
+Switch targets and run the host tests. State which targets you built and
+whether you tested on hardware.
+
 ## Never commit
 
 - ROMs, saves, `emerald3ds.pak`, or any file extracted or generated from a ROM
   (graphics, maps, audio, text, tables, voxel data);
 - logs, screenshots from test runs, editor or AI-agent state, chat
   transcripts;
-- build outputs (`*.3dsx`, `*.elf`, `3ds_port/romfs/` contents).
+- build outputs (`*.3dsx`, `*.nro`, `*.nacp`, `*.elf`, `3ds_port/romfs/`
+  contents, `build/upstream/`, `switch_port/dist/`, release `.zip` files).
 
 `python tools/release_audit.py --repo . --strict` must pass; CI runs it on
 every pull request. New images or audio need a provenance entry in
@@ -258,11 +280,13 @@ every pull request. New images or audio need a provenance entry in
 ## Changes to the decompilation
 
 The upstream tree is not part of this repository: its changes live in
-`patches/pokeemerald/`. Prefer a hook in `3ds_port/` over editing a game
-file, and keep game-side edits minimal and behind `PORT_BRIDGE` or
-`PLATFORM_3DS`. To change a patch, edit the bootstrapped tree in
-`build/upstream`, then regenerate the patches from it (`git diff` against the
-pinned commit, one file per topic; see the headers of the existing patches).
+`patches/pokeemerald/`. Prefer a hook in the platform directories
+(`3ds_port/`, `android_port/`, `switch_port/`) over editing a game file, and
+keep game-side edits minimal and behind `PORT_BRIDGE`, `PLATFORM_3DS`,
+`PLATFORM_ANDROID` or `__SWITCH__`. To change a patch, edit the bootstrapped
+tree in `build/upstream`, then regenerate the patches from it (`git diff`
+against the pinned commit, one file per topic; see the headers of the existing
+patches).
 
 ## Code
 

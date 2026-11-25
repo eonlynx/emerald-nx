@@ -5,6 +5,9 @@
 - devkitPro with devkitARM, libctru, citro2d, citro3d and 3dstools
   (`pacman -S --needed libctru citro2d citro3d 3dstools`), including its
   `picasso` shader assembler.
+- For Emerald NX, the same devkitPro installation with devkitA64, libnx,
+  switch-tools, switch-mesa and switch-libdrm_nouveau, plus `zip`; see
+  [Building for Nintendo Switch](#building-for-nintendo-switch).
 - A native host C/C++ compiler for the decomp tools and the host tests
   (on Windows, MSYS2 MinGW64's gcc/g++ on `PATH`).
 - Python 3.11+ with Pillow.
@@ -24,6 +27,8 @@ clones pret/pokeemerald at the commit pinned in `upstream.lock` into
 `3ds_port/`, `tools/` and `builder/` inside it. `--make` also builds the
 decomp tools and the 3DSX there (`--jobs N`). Re-running it refreshes the
 port files without touching the upstream checkout unless `--clean` is given.
+`android_port/` and `switch_port/` stay at the repository root; their build
+scripts point at `build/upstream`.
 
 ## Building
 
@@ -66,6 +71,56 @@ The log is `/3ds/emerald3ds/port.log`, written only if an empty file named
 builds); the previous session is kept as `port-prev.log`. Emulator runs (Azahar) are useful for
 diagnosis; acceptance is on hardware — the SD card's latency, the linear heap
 and VRAM behave differently there.
+
+## Building for Nintendo Switch
+
+Emerald NX uses the same bootstrapped tree and the same game data as the 3DS
+build. From the repository root, with devkitPro's environment available:
+
+```sh
+export DEVKITPRO=/opt/devkitpro
+python tools/bootstrap.py                       # once
+bash switch_port/build_switch.sh                # loader + game + data + zip
+```
+
+The script builds `switch_port/loader/emerald-nx.nro`, the game NRO with
+`switch_port/switch.mk`, keeps the generated `romfs/` data from an earlier
+3DS build, and writes:
+
+```
+switch_port/dist/switch/emerald-nx/
+    emerald-nx.nro
+    emerald-game.nro
+    data/
+    README.txt
+    licences/
+switch_port/dist/emerald-nx.zip
+```
+
+`CLEAN_BUILD=1 bash switch_port/build_switch.sh` removes the object directory
+first; use it after switching from the 3DS build if anything looks stale.
+`JOBS=N` and `PYTHON=...` override the defaults, and `TREE=...` points at a
+different bootstrapped tree.
+
+Static audits, run from `build/upstream/3ds_port`:
+
+```sh
+make -f ../../switch_port/switch.mk check-save-layout
+make -f ../../switch_port/switch.mk check-overlays
+```
+
+The save check compares the 32-bit ARM and AArch64 layouts of `SaveBlock1`,
+`SaveBlock2` and `PokemonStorage`; the overlay check reports structures laid
+over GBA-sized storage. The reviewed Switch exceptions are in
+`switch_port/tools/check_overlays.allow`.
+
+To run a package, unzip it at the SD root and launch
+`sdmc:/switch/emerald-nx/emerald-nx.nro` from hbmenu as a **title takeover**
+(hold **R** while opening a game). Logs are written next to the NRO:
+`loader.log`, `emerald-nx.log` and `port.log`. The complete install and
+controls reference is in the root [README](../README.md); the port's design
+and reference audit are in [switch_port/README.md](../switch_port/README.md)
+and [switch_port/SWITCH_PORT_PLAN.md](../switch_port/SWITCH_PORT_PLAN.md).
 
 ## Host tests
 

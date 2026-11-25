@@ -1,6 +1,42 @@
 # Changelog
 
-## 0.5.0 — 2026-10-29
+## 0.6.0 – 2026-11-25
+
+Emerald NX, the first Nintendo Switch port. The 3DS and Android ports remain
+in the same tree and keep building.
+
+- Nintendo Switch: a native homebrew `.nro` runs the Emerald engine on
+  Horizon with no emulator. `emerald-nx.nro` maps `emerald-game.nro` below
+  4 GiB with `svcMapProcessCodeMemory`, gives it a low heap and stack through
+  the homebrew ABI, and starts it, so the engine's 32-bit address fields stay
+  valid.
+- Video: NWindow/EGL/GLES3 at 1280x720 handheld and 1920x1080 docked, with
+  the surface recreated when the console changes mode. The GBA picture and
+  the bottom-screen panel use the shared Android renderer.
+- Audio: libnx `audout` at 48 kHz through the shared mixer and a
+  phase-continuous linear resampler; released buffers are drained directly.
+- Input: native libnx pad and touch. A/B/X/Y follow their printed letters,
+  ZL/ZR control fast-forward and battle speed, and touch is limited to the
+  bottom-screen panel.
+- Lifecycle: `appletMainLoop` and an `appletHook` handle HOME, exit, focus
+  loss and return; audio pauses while the HOME menu or sleep owns the screen,
+  and frame clocks reset on return.
+- Options: BATTLE SPEED with AUTO follows the engine's setting, and the MAP
+  can show progressive visited-town markers or the classic display.
+  Cherry-picked from Proginji2000's branches; no story or event changes.
+- Packaging: `switch_port/build_switch.sh` writes an SD-ready
+  `switch_port/dist/emerald-nx.zip` with `switch/emerald-nx/`, `data/`,
+  `README.txt` and `licences/`, plus a 256x256 project icon.
+- Audits: the SaveBlock1/SaveBlock2/PokemonStorage layouts match between
+  ARM32 and AArch64; the overlay audit reports 13 reviewed findings and none
+  that are not allowed.
+- Known limits: local wireless is stubbed, and the first hardware boot was
+  still pending when this entry was written.
+- Android and 3DS: their platform sources and build files are unchanged apart
+  from `#ifdef __SWITCH__` branches in shared files; the shared map and battle
+  units compile in the 3DS and Switch builds.
+
+## 0.5.0 – 2026-10-29
 
 The first beta.
 
