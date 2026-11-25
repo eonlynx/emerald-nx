@@ -24,16 +24,43 @@
 u8 __nx_exception_stack[0x8000] __attribute__((aligned(16)));
 u64 __nx_exception_stack_size = sizeof(__nx_exception_stack);
 
+/* stderr may not exist yet when the fault happens (the game opens its log
+ * after mounting sdmc).  Write the crash line through the FS service as well,
+ * as Dusklight's exit trace does, so a pre-main fault still leaves a file. */
+static void crash_log(const char *line) {
+    FsFileSystem fs;
+    FsFile file;
+    s64 size = 0;
+    const char *path = "/switch/emerald-nx/crash.log";
+
+    if (R_FAILED(fsOpenSdCardFileSystem(&fs))) {
+        return;
+    }
+    fsFsCreateDirectory(&fs, "/switch");
+    fsFsCreateDirectory(&fs, "/switch/emerald-nx");
+    fsFsCreateFile(&fs, path, 0, 0);
+    if (R_SUCCEEDED(fsFsOpenFile(&fs, path, FsOpenMode_Write | FsOpenMode_Append, &file))) {
+        fsFileGetSize(&file, &size);
+        fsFileWrite(&file, size, line, strlen(line), FsWriteOption_Flush);
+        fsFileClose(&file);
+    }
+    fsFsClose(&fs);
+}
+
 void __libnx_exception_handler(ThreadExceptionDump *ctx) {
-    fprintf(stderr,
-            "Emerald NX CRASH: desc=0x%x PC=%016llx LR=%016llx SP=%016llx "
-            "FAR=%016llx ESR=%08x\n",
-            ctx->error_desc,
-            (unsigned long long)ctx->pc.x,
-            (unsigned long long)ctx->lr.x,
-            (unsigned long long)ctx->sp.x,
-            (unsigned long long)ctx->far.x,
-            ctx->esr);
+    char line[256];
+
+    snprintf(line, sizeof(line),
+             "Emerald NX CRASH: desc=0x%x PC=%016llx LR=%016llx SP=%016llx "
+             "FAR=%016llx ESR=%08x\n",
+             ctx->error_desc,
+             (unsigned long long)ctx->pc.x,
+             (unsigned long long)ctx->lr.x,
+             (unsigned long long)ctx->sp.x,
+             (unsigned long long)ctx->far.x,
+             ctx->esr);
+    crash_log(line);
+    fprintf(stderr, "%s", line);
     fflush(stderr);
     svcExitProcess();
 }

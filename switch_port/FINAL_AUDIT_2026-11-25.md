@@ -82,10 +82,10 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 
 - Switch: full AArch64 build, NRO, data bundles, single-file pack and package
   pass. Link check accepts only the expected `R_AARCH64_ABS32` sites in
-  `.gamedata`. Final build id `d6fdbc673b36545a`; package 13,356,369 bytes,
-  SHA-256 `F4F87D379B569B9C7E3FA05F3A10CFB62AAE0AD19643E63B9A621B97CFCF537B`.
+  `.gamedata`. Final build id `b196d4685dbd7143`; package 13,357,985 bytes,
+  SHA-256 `113B8A4728B89291B6518BD8C25B8F71DF8FCF9BB423C988E3F642FB1F12F858`.
   `emerald-game.nro` SHA-256
-  `08B40426EEE83604292E5FE9B211783B8D64D717F1F1C53196E4DA4F24202518`,
+  `835C1357E15711B89F6CEE0C73FEE2D0AC5B3C22BD50693F0D9B71CB9D3261BE`,
   `emerald3ds.pak` SHA-256
   `0F851E9F9E8309308B863D2B72350075FED6348001BC3F4E489EF9763B0505EA`
   (6,425 entries, 55,899,776 bytes, ABI `a745bd69`), loader SHA-256
