@@ -1678,6 +1678,34 @@ void CtrVideo_Shutdown(void)
 /* A new window for a screen (or none): a new surface. */
 static void SyncWindows(void)
 {
+#ifdef __SWITCH__
+    static NWindow *sNxWindow;
+    static int sNxWidth, sNxHeight;
+    const int width = appletGetOperationMode() == AppletOperationMode_Console ? 1920 : 1280;
+    const int height = appletGetOperationMode() == AppletOperationMode_Console ? 1080 : 720;
+
+    if (sSurf[0] != EGL_NO_SURFACE && sNxWidth == width && sNxHeight == height)
+        return;
+    if (sSurf[0] != EGL_NO_SURFACE)
+    {
+        eglMakeCurrent(sDpy, sPbuf, sPbuf, sCtx);
+        eglDestroySurface(sDpy, sSurf[0]);
+        sSurf[0] = EGL_NO_SURFACE;
+    }
+    sNxWindow = nwindowGetDefault();
+    nwindowSetDimensions(sNxWindow, width, height);
+    sSurf[0] = eglCreateWindowSurface(sDpy, sCfg, (EGLNativeWindowType)sNxWindow, NULL);
+    if (sSurf[0] != EGL_NO_SURFACE)
+    {
+        eglMakeCurrent(sDpy, sSurf[0], sSurf[0], sCtx);
+        eglSwapInterval(sDpy, 0);
+    }
+    sNxWidth = width;
+    sNxHeight = height;
+    sBottomDirty = true;
+    CtrLog_Write(CTR_LOG_VIDEO, "Switch window: %dx%d", width, height);
+    return;
+#else
     for (int i = 0; i < HOST_SCREENS; i++)
     {
         uint32_t gen;
@@ -1713,6 +1741,7 @@ static void SyncWindows(void)
         sBottomDirty = true;
         AndroidHost_WindowDone(i, gen);
     }
+#endif
 }
 
 /* The smallest rectangle of the picture's aspect covering the view, centred:
