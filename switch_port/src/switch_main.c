@@ -69,13 +69,18 @@ int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
 
+    /* Breadcrumbs through the FS service, before stdio needs a mounted sdmc:
+     * if the process dies before the log exists, these say how far it got. */
+    crash_log("Emerald NX: main entered\n");
     fsdevMountSdmc();
+    crash_log("Emerald NX: sdmc mounted\n");
     mkdir("sdmc:/switch", 0777);
     mkdir(APP_DIR, 0777);
     mkdir(APP_DIR "/data", 0777);
 
     if (freopen(LOG_PATH, "w", stderr)) {
         setvbuf(stderr, NULL, _IOLBF, 0);
+        crash_log("Emerald NX: emerald-nx.log opened\n");
     }
     fprintf(stderr, "Emerald NX: starting (applet %d)\n", appletGetAppletType());
     fflush(stderr);
