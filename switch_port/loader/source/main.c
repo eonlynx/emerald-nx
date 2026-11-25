@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
         setvbuf(g_log, NULL, _IOLBF, 0);
     }
 
-    log_line("Emerald NX loader (direct CRT0 entry, 2026-11-25b)");
+    log_line("Emerald NX loader (direct CRT0 entry, 2026-11-25c)");
     log_line("loader: applet type %d, own process handle 0x%x, main thread 0x%x",
              appletGetAppletType(), envGetOwnProcessHandle(), envGetMainThreadHandle());
 
