@@ -2601,9 +2601,10 @@ static u8 CurrentMode(void)
     if (CtrVideo_StageZoomed())
         return MODE_OFF;
     /* A single screen: the PC's boxes (and the summary and bag they open)
-     * and battles (their menus, bag and party) are the top screen's, as on
-     * the GBA, and no session of this one. */
-    if (CtrBottom_Vanilla())
+     * and CLASSIC battles are the top screen's, as on the GBA, and no session
+     * of this one.  A NEW battle menu is the exception: it is this screen's,
+     * so its ACTION/MOVE/TARGET modes must be reached below. */
+    if (CtrBottom_Vanilla() && !CtrBattleMenu_Active())
         return gMain.inBattle ? MODE_BATTLE_INFO : MODE_FIELD;
     if (CtrPokenav_IsOpen())
         return MODE_POKENAV;
@@ -4245,9 +4246,8 @@ static void DrawCached(int pid, u8 state, u32 stamp, int ax, int ay, u8 tintBase
      * draw the battle plates directly, labels and all. */
     if (CtrVideo_SingleScreen() && s->mode >= MODE_BATTLE_INFO)
     {
+        /* The body adds its own hit rectangle; a cached copy would add it. */
         body(s, arg);
-        if (hit != HIT_NONE)
-            AddHit(ax, ay, hw, hh, hit);
         return;
     }
     if (!e->alpha || !e->w || !e->h)
@@ -6920,6 +6920,7 @@ uint16_t CtrBottom_FilterKeys(uint16_t held)
         sFocus = sShown.screen < SCR_COUNT ? sShown.screen : SCR_BAG;
         sSwallow = TRUE;
         sNativeBFocus = TRUE;
+        sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
         return 0;
     }
@@ -6932,14 +6933,17 @@ uint16_t CtrBottom_FilterKeys(uint16_t held)
  * submenus keep B for themselves (cancel, quantity, a question). */
 static bool8 NativeBackToDock(void)
 {
-    if (!sShown.native)
+    /* Only a section in the dock, never a whole-screen menu or a battle's
+     * hidden menu: there is no dock to go back to there. */
+    if (!sShown.native || gMain.inBattle || sShown.screen >= SCR_COUNT)
         return FALSE;
     switch (sShown.native)
     {
     case NATIVE_BAG:
         return sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST;
     case NATIVE_PARTY:
-        return sShown.pv.state == CTR_PARTY_VIEW_LIST;
+        return sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
+            && gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD;
     case NATIVE_DEX:
     case NATIVE_SUMMARY:
         return TRUE;
@@ -7103,6 +7107,7 @@ static void SaveKeys(u8 mode, u16 down)
         sInside = INSIDE_NONE;
         sScreen = SCR_SAVE;
         sFocus = SCR_SAVE;
+        sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
         return;
     }
