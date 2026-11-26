@@ -128,16 +128,6 @@ static inline uint16_t Pal(unsigned index) { return sMem.palette[index] & 0x7FFF
 
 /* A per-line register (HBlank DMA effects), or the latched one. */
 static unsigned sLine;
-/* Fast-forward renders every sRowStep-th line and copies it down: the 2D
- * field is software-composited and at 4x it cannot also afford four game
- * frames per shown frame at full vertical detail.  1 = normal. */
-static int sRowStep = 1;
-/* The battle's scene is heavier than the field (zoom, more layers and
- * effects).  It starts at full detail and drops to every other scanline if
- * two consecutive renders miss the frame budget; it stays there until the
- * battle ends, so the detail does not flicker. */
-static int sBattleStep = 1;
-static unsigned sBattleSlow;
 static inline uint16_t LReg(unsigned offset)
 {
     if (sLineRegCount && sLine < sLineRegCount && offset >= CTR_LINE_REG_FIRST
@@ -959,7 +949,7 @@ static void RenderPicture(int width, int height, int ox, int oy)
         sAffX[i] = CtrVideo_AffineReference(rx);
         sAffY[i] = CtrVideo_AffineReference(ry);
     }
-    for (int y = 0; y < height; y += sRowStep)
+    for (int y = 0; y < height; y++)
     {
         uint32_t *row = sOut + (size_t)(oy + y) * TOP_W + ox;
         int gy = y + (sWide ? sOrgY : 0);
@@ -970,8 +960,6 @@ static void RenderPicture(int width, int height, int ox, int oy)
         {
             for (int x = 0; x < width; x++)
                 row[x] = 0xFFFFFFFFu;
-            for (int k = 1; k < sRowStep && y + k < height; k++)
-                memcpy(row + (size_t)k * TOP_W, row, (size_t)width * sizeof(uint32_t));
             continue;
         }
         bool bgOn[4] = { false, false, false, false };
@@ -1067,13 +1055,10 @@ static void RenderPicture(int width, int height, int ox, int oy)
             else
                 row[x] = ToRGBA(out);
         }
-        /* Fast-forward: the skipped rows take this row's pixels. */
-        for (int k = 1; k < sRowStep && y + k < height; k++)
-            memcpy(row + (size_t)k * TOP_W, row, (size_t)width * sizeof(uint32_t));
         for (int i = 0; i < 2 && gy >= 0; i++)
         {
-            sAffX[i] += (int16_t)LReg(0x22 + 16 * i) * sRowStep;
-            sAffY[i] += (int16_t)LReg(0x26 + 16 * i) * sRowStep;
+            sAffX[i] += (int16_t)LReg(0x22 + 16 * i);
+            sAffY[i] += (int16_t)LReg(0x26 + 16 * i);
         }
     }
 }
@@ -3491,11 +3476,6 @@ static void ComposeBattleWorld(void)
 /* The battle's view, GBA (-BATTLE_MARGIN_X, -BATTLE_MARGIN_Y) on, into sTop. */
 static void BattleRender(void)
 {
-    const bool fast = AndroidPlatform_FastForward();
-    const int outerStep = sRowStep;
-    uint64_t start = CtrPlatform_Ticks();
-    float ms;
-
     sBattleSliding = CtrBattleIntro_Sliding() != 0;
     for (unsigned bg = 0; bg < 4; ++bg)
         sBattlePicture[bg] = BattlePictureLayer(bg);
@@ -3504,35 +3484,14 @@ static void BattleRender(void)
     sBattleScene = true;
     sOrgX = -BATTLE_MARGIN_X;
     sOrgY = -BATTLE_MARGIN_Y;
-    sRowStep = fast ? 2 : sBattleStep;
     RenderPicture(BATTLE_VIEW_W, BATTLE_VIEW_H, 0, 0);
     sBattleScene = false;
-    /* ... and the GBA's text box band, lines 112-160, under it in sTop.
-     * Text keeps every line: it is what the player reads. */
-    sRowStep = 1;
+    /* ... and the GBA's text box band, lines 112-160, under it in sTop. */
     sOrgX = 0;
     sOrgY = BATTLE_BAND_TOP;
     RenderPicture(GBA_W, GBA_H - BATTLE_BAND_TOP, 0, BATTLE_VIEW_H);
     sBattleWide = false;
     sOrgX = sOrgY = 0;
-    sRowStep = outerStep;
-
-    /* Judge the full-detail scene only; at fast-forward it is already halved. */
-    ms = CtrPlatform_TickMs(CtrPlatform_Ticks() - start);
-    if (!fast)
-    {
-        if (ms > 12.0f)
-        {
-            if (++sBattleSlow >= 2 && sBattleStep != 2)
-            {
-                sBattleStep = 2;
-                if (CtrLog_Verbose())
-                    CtrLog_Write(CTR_LOG_VIDEO, "battle compositor: %.1f ms, every other scanline", ms);
-            }
-        }
-        else
-            sBattleSlow = 0;
-    }
 }
 
 /*
@@ -4039,10 +3998,6 @@ void CtrVideo_Present(void)
     static uint32_t sFpsFrames;
 
     uint64_t frameStart = svcGetSystemTick();
-    /* Above 1x the CPU compositor gives up half the rows to keep the speed. */
-    sRowStep = AndroidPlatform_FastForward() ? 2 : 1;
-    if (!sBattle)
-        sBattleStep = 1, sBattleSlow = 0;
     bool voxel = false, blank = false, composed = false, battleWorld = false, battle2d = false, stage = false;
     float fade2d = 0.0f;
     GLuint topTex = sTopTex;

@@ -461,11 +461,6 @@ static void FastForwardLog(bool shown)
     }
 }
 
-bool AndroidPlatform_FastForward(void)
-{
-    return sSpeedHalves >= 4 && !sPacedFrame;
-}
-
 float AndroidPlatform_FrameReserveMs(void)
 {
     unsigned hidden;

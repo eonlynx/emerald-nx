@@ -46,9 +46,8 @@ needed now.
 - Touch screen (handheld): the bottom screen's window; it is also shown on the
   top screen as in the Android single-screen port.
 
-At 1x the 2D picture keeps every scanline. Fast-forward above 1x may render
-every other scanline of the 2D field (and, only when a battle needs it, of the
-battle scene) so the game keeps the chosen speed; the picture stays full-size.
+Fast-forward keeps the full 2D detail at every speed: the picture does not
+drop scanlines or change resolution.
 
 ## Data / legal
 

@@ -82,19 +82,18 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 
 - Switch: full AArch64 build, NRO, data bundles, single-file pack and package
   pass. Link check accepts only the expected `R_AARCH64_ABS32` sites in
-  `.gamedata`. Final build id `8b087b2dd00c258c`; package 13,362,466 bytes,
-  SHA-256 `33552F7587086BC20FF9A7D087F1C1BA0560FC961164DD6D48F655FB006AC539`.
+  `.gamedata`. Final build id `c4f677d7895ec20e`; package 13,363,591 bytes,
+  SHA-256 `B395A0D70B4AE508E52D6A57BDC4740CE0A2ED22EBAF5F176CEC579C6CC819C8`.
   `emerald-game.nro` SHA-256
-  `29326AF7C7E2BA48BBC64388FD78B9A6AC1E2178A37806029CB2B406B15EC2CB`,
+  `27D62C4F44E0CE159B6C4C10E463D4ABF2BFDC8CBA588054ADB56E26298D3779`,
   `emerald3ds.pak` SHA-256
-  `C0E3136435EAB837C26862234C18123C8DD1C88F5876F0E56C1D3A753038AEA1`
-  (6,425 entries, 55,899,776 bytes, ABI `bfec8cbd`), loader SHA-256
+  `4E0CDD25923E91DE1F74DA34FE7CEEAEF97E9C4ABAF0C8AC7AFBF6ED8CC49261`
+  (6,425 entries, 55,899,776 bytes, ABI `e123043a`), loader SHA-256
   `88156AC4E9AE71DFE6890FB2EFCA31BCD5CCA4C9E12276344552E27A9505B15D`.
   On Switch the stage, battle and voxel composite uses the NWindow's
   1280x720/1920x1080 size, not the 1944x1080 fallback used when
-  `eglQuerySurface` reports 0x0; the 2D battle drops to every other scene
-  scanline only after two renders over 12 ms, and fast-forward above 1x does
-  the same for the 2D field.
+  `eglQuerySurface` reports 0x0. Fast-forward keeps full 2D detail at every
+  speed.
 - 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM;
   `emerald3ds.elf` 31,901,540 bytes and `emerald3ds.3dsx` 62,087,788 bytes,
   rc=0.

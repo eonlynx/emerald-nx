@@ -35,9 +35,6 @@ void AndroidAudio_SetPaused(bool paused);
 /* While fast-forwarding, the time a shown frame must leave for the game
  * frames run unshown before the next (android_platform.c); 0 at 1x. */
 float AndroidPlatform_FrameReserveMs(void);
-/* True while the player holds a fast-forward speed of 2x or more.  The 2D
- * software compositor may then trade vertical detail for frame time. */
-bool AndroidPlatform_FastForward(void);
 uint32_t AndroidHost_ResumeCount(void);
 
 /* Input as the shell last reported it (android_input.c reads it). */

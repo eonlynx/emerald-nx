@@ -36,12 +36,10 @@ in the same tree and keep building.
   player; the classic 2D software compositor is compiled with `-O3`. The GL
   programs and surfaces shared with the stage screens are still created, so
   the title, intro, menus and 2D battles keep their full-size layout with the
-  voxel world off. Above 1x fast-forward, the 2D field composites every other
-  scanline and stretches it to the same full-size picture: the extra game
-  frames no longer starve the software compositor. At 1x every line is drawn
-  as before. The battle scene starts at full detail and drops to every other
-  scanline only after two consecutive renders take more than 12 ms, staying
-  there until the battle ends; the text box always keeps every line.
+  voxel world off. Fast-forward keeps the full 2D detail at every speed; the
+  compositor's higher optimisation, the lazy voxel world and the
+  correctly-sized GL surfaces are what recover the frame time, with no
+  scanline drop or resolution change.
 - Lifecycle: `appletMainLoop` and an `appletHook` handle HOME, exit, focus
   loss and return; audio pauses while the HOME menu or sleep owns the screen,
   and frame clocks reset on return.
