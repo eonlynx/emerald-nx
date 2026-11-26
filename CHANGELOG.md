@@ -12,7 +12,9 @@ in the same tree and keep building.
   valid.
 - Video: NWindow/EGL/GLES3 at 1280x720 handheld and 1920x1080 docked, with
   the surface recreated when the console changes mode. The GBA picture and
-  the bottom-screen panel use the shared Android renderer.
+  the bottom-screen panel use the shared Android renderer. Switch binds the
+  ES API and initializes with a window surface (switch-mesa has no pbuffer
+  config), as smbr-nx does.
 - Audio: libnx `audout` at 48 kHz through the shared mixer and a
   phase-continuous linear resampler; released buffers are drained directly.
 - Input: native libnx pad and touch. A/B/X/Y follow their printed letters,

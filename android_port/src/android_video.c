@@ -1630,17 +1630,47 @@ bool CtrVideo_Init(void)
     const EGLint attr[] = { EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
         EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_NONE };
+    const EGLint attrWindow[] = { EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_NONE };
     const EGLint ctxAttr[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
     const EGLint pbAttr[] = { EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE };
     EGLint n = 0;
 
     sDpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (!eglInitialize(sDpy, NULL, NULL) || !eglChooseConfig(sDpy, attr, &sCfg, 1, &n) || n < 1)
+    if (sDpy == EGL_NO_DISPLAY || !eglInitialize(sDpy, NULL, NULL) ||
+        !eglBindAPI(EGL_OPENGL_ES_API)) {
+        CtrLog_Write(CTR_LOG_ERROR, "EGL display/init/bind failed: 0x%x", eglGetError());
         return false;
+    }
+#ifdef __SWITCH__
+    /* switch-mesa has no pbuffer config; smbr-nx initializes with the
+     * default window surface instead. */
+    if (!eglChooseConfig(sDpy, attrWindow, &sCfg, 1, &n) || n < 1) {
+        CtrLog_Write(CTR_LOG_ERROR, "EGL choose window config failed: 0x%x", eglGetError());
+        return false;
+    }
+    NWindow *win = nwindowGetDefault();
+    nwindowSetDimensions(win, 1280, 720);
+    sSurf[0] = eglCreateWindowSurface(sDpy, sCfg, (EGLNativeWindowType)win, NULL);
+    sCtx = eglCreateContext(sDpy, sCfg, EGL_NO_CONTEXT, ctxAttr);
+    if (sSurf[0] == EGL_NO_SURFACE || sCtx == EGL_NO_CONTEXT ||
+        !eglMakeCurrent(sDpy, sSurf[0], sSurf[0], sCtx)) {
+        CtrLog_Write(CTR_LOG_ERROR, "EGL Switch surface/context failed: 0x%x", eglGetError());
+        return false;
+    }
+#else
+    if (!eglChooseConfig(sDpy, attr, &sCfg, 1, &n) || n < 1) {
+        CtrLog_Write(CTR_LOG_ERROR, "EGL choose config failed: 0x%x", eglGetError());
+        return false;
+    }
     sCtx = eglCreateContext(sDpy, sCfg, EGL_NO_CONTEXT, ctxAttr);
     sPbuf = eglCreatePbufferSurface(sDpy, sCfg, pbAttr);
-    if (sCtx == EGL_NO_CONTEXT || !eglMakeCurrent(sDpy, sPbuf, sPbuf, sCtx))
+    if (sCtx == EGL_NO_CONTEXT || !eglMakeCurrent(sDpy, sPbuf, sPbuf, sCtx)) {
+        CtrLog_Write(CTR_LOG_ERROR, "EGL context/pbuffer failed: 0x%x", eglGetError());
         return false;
+    }
+#endif
     CtrLog_Write(CTR_LOG_VIDEO, "GL %s / %s", glGetString(GL_VERSION), glGetString(GL_RENDERER));
 
     sProgram = glCreateProgram();
@@ -1688,7 +1718,7 @@ static void SyncWindows(void)
         return;
     if (sSurf[0] != EGL_NO_SURFACE)
     {
-        eglMakeCurrent(sDpy, sPbuf, sPbuf, sCtx);
+        eglMakeCurrent(sDpy, EGL_NO_SURFACE, EGL_NO_SURFACE, sCtx);
         eglDestroySurface(sDpy, sSurf[0]);
         sSurf[0] = EGL_NO_SURFACE;
     }
