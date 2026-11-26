@@ -175,9 +175,9 @@ containing them unless you have the rights. See
 | ZL / ZR | Hold either for the MAX SPEED; release returns to 1x. Both together lock the MAX SPEED, or 1x again |
 | Left stick click | SHOW FPS on or off; a notice above the counter says SHOW FPS ENABLED/DISABLED for a few seconds |
 | Right stick click | DAY / NIGHT between AUTO and OFF; its notice says DAY / NIGHT ENABLED/DISABLED |
-| Plus | Start |
+| Plus | Start. Also opens or closes the bottom-screen panel, as X (the battle panel in battle) |
 | Minus | Select (the registered item; in a battle's action menu, the quick ball) |
-| X | Open the bottom-screen panel, also during conversations; in battle, show the bottom battle screen (again to close, or B from its main menu) |
+| X | Open or close the bottom-screen panel, also during conversations; in battle, show the bottom battle screen (again to close) |
 | Touch screen (handheld) | The bottom-screen panel |
 
 DAY / NIGHT starts in AUTO on Switch. In the bottom panel, **UP** enters the

@@ -2574,7 +2574,7 @@ typedef struct
 static BattleAsk sAsk, sAsked;
 static u8 sBattleTap = 0xFF;   /* a tap for the controller to take */
 /* In battle, X keeps the bottom screen up even when the NEW battle menu
- * would only show it on the player's turn; B hides it for this turn. */
+ * would only show it on the player's turn; X alone hides it again. */
 static bool8 sBattlePanel, sBattlePanelOff;
 static bool8 sMoveCancel;      /* the move menu's cursor is on CANCEL */
 static bool8 sQuickBallTap;    /* the ball button was tapped */
@@ -2750,9 +2750,9 @@ void CtrBattleMenu_Begin(void)
     sQuickBallFocus = FALSE;
 }
 
-/* The ball button once per tap, or SELECT once per press in the action menu
- * (R and L are the battle speed's): the action handler throws the ball.
- * Outside battle SELECT remains the game's registered-item button. */
+/* The ball button once per tap, or SELECT once per press in the action menu:
+ * the action handler throws the ball.  Outside battle SELECT remains the
+ * game's registered-item button. */
 bool8 CtrBattleMenu_TakeQuickBall(void)
 {
     bool8 tapped = sQuickBallTap || (CtrInput_Get()->physicalDown & CTR_KEY_SELECT) != 0;
@@ -2812,6 +2812,26 @@ void CtrBattleMenu_ActionInput(u8 *cursor, bool8 safari)
     bool8 ball = !safari && CtrBattle_QuickBallItem() != ITEM_NONE;
 
     gMain.newKeys &= ~DPAD_ANY;
+    /* B is the quick way to RUN: it puts the cursor there, and pressed
+     * again on RUN it confirms the flee.  It never closes this panel (X
+     * does).  In a double battle the game's own B would cancel the
+     * partner, so it is taken here. */
+    if (gMain.newKeys & B_BUTTON)
+    {
+        gMain.newKeys &= ~B_BUTTON;
+        if (sQuickBallFocus || *cursor != 3)
+        {
+            sQuickBallFocus = FALSE;
+            if (*cursor != 3)
+                *cursor = 3;
+            PlaySE(SE_SELECT);
+        }
+        else
+        {
+            gMain.newKeys |= A_BUTTON;
+        }
+        dpad = 0;
+    }
     if (!ball)
         sQuickBallFocus = FALSE;
     if (sQuickBallFocus)
@@ -7046,9 +7066,16 @@ static bool8 NativeListAtEnd(void)
         return sShown.dx.state == CTR_DEX_VIEW_LIST && sShown.dx.count > 0
             && sShown.dx.selected + 1 >= sShown.dx.count;
     case NATIVE_PARTY:
-        /* PARTY_SIZE + 1 is the party menu's CANCEL, its last entry. */
-        return !sNativeStale && sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
-            && sShown.pv.cursor >= PARTY_SIZE + 1;
+        /* PARTY_SIZE + 1 is the party menu's CANCEL, its last entry.  Read
+         * the game's cursor live: the drawn snapshot is one frame behind
+         * the input, and a DOWN just after UP out of CANCEL saw CANCEL
+         * still and left for the dock instead of moving within the party. */
+        {
+            static struct CtrPartyView view;
+
+            return sShown.bagView == BAG_VIEW_SECTION && CtrParty_GetView(&view)
+                && view.state == CTR_PARTY_VIEW_LIST && view.cursor >= PARTY_SIZE + 1;
+        }
     }
     return FALSE;
 }
@@ -7325,9 +7352,6 @@ static bool8 NativeListAtStart(void)
             && sShown.bv.scroll == 0 && sShown.bv.cursor == 0;
     case NATIVE_DEX:
         return sShown.dx.state == CTR_DEX_VIEW_LIST && sShown.dx.selected == 0;
-    case NATIVE_PARTY:
-        return !sNativeStale && sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
-            && sShown.pv.cursor == 0;
     }
     return FALSE;
 }
@@ -7645,6 +7669,16 @@ static void MapKeys(u8 mode, u16 down)
     }
 }
 
+/* The bottom panel's switch: X, and START too where both screens share one
+ * display (the Switch).  SELECT stays the game's SELECT: the registered
+ * item, and the quick ball in a battle's action menu. */
+static bool8 PanelKey(const CtrInput *in)
+{
+    if (in->physicalDown & CTR_KEY_X)
+        return TRUE;
+    return CtrVideo_SingleScreen() && (in->physicalDown & CTR_KEY_START) != 0;
+}
+
 static void ProcessKeys(u8 mode)
 {
     const CtrInput *in = CtrInput_Get();
@@ -7668,8 +7702,7 @@ static void ProcessKeys(u8 mode)
     }
     /* Without a second screen START is X: it opens the bottom screen's
      * window with the buttons in it (CtrBottom_PanelShown), and closes it. */
-    bool8 x = (in->physicalDown & CTR_KEY_X) != 0
-           || (CtrVideo_SingleScreen() && (in->physicalDown & CTR_KEY_START) != 0);
+    bool8 x = PanelKey(in);
 
     if (sSwallow && !(in->held & CTR_KEY_GAME) && !(in->physicalHeld & (CTR_KEY_X | CTR_KEY_Y)))
         sSwallow = FALSE;
@@ -7701,9 +7734,15 @@ static void ProcessKeys(u8 mode)
     {
         if (x)
         {
+            /* X is the panel's switch: with a subpanel open, close the
+             * whole panel instead of dropping the focus back on its
+             * category. */
             sInside = INSIDE_NONE;
-            sFocus = sScreen;
+            sFocus = FOCUS_NONE;
+            sSwallow = TRUE;
+            sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
+            return;
         }
         else if (sInside == INSIDE_OPTIONS)
             OptionKeys(down);
@@ -8452,18 +8491,15 @@ void CtrBottom_Frame(void)
         const CtrInput *in = CtrInput_Get();
         bool8 turn = CtrBattleMenu_Active() && (sAsk.kind != ASK_NONE || sAsked.kind != ASK_NONE);
 
-        if (CtrVideo_SingleScreen() && (in->physicalDown & CTR_KEY_X))
+        if (CtrVideo_SingleScreen() && PanelKey(in))
         {
             bool8 shown = sBattlePanel || (turn && !sBattlePanelOff);
 
             sBattlePanel = !shown;
             sBattlePanelOff = shown;
-        }
-        /* B closes the panel from the battle menu's main screen. */
-        if (mode == MODE_BATTLE_ACTION && (in->physicalDown & B_BUTTON))
-        {
-            sBattlePanel = FALSE;
-            sBattlePanelOff = TRUE;
+            /* START is the game's too: take it this frame, so it does not
+             * also swap the HP bars. */
+            sSwallow = TRUE;
         }
     }
     else

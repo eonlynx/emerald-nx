@@ -34,9 +34,9 @@ static bool sVoxel = false;
  * ctr_voxel.c); further out or flatter would only cost more chunks per frame.
  */
 static const int sPitches[] = {34, 37, 40, 43, 46};
-static const int sZooms[] = {90, 100, 110, 120};
+static const int sZooms[] = {80, 90, 100, 110, 120};
 #define COUNT(a) ((int)(sizeof(a) / sizeof((a)[0])))
-static int sPitch = 2, sZoom = 1;
+static int sPitch = 4, sZoom = 0;
 /* The HD-2D tilt-shift blur over the voxel picture (3ds_video.c): its
  * strength in percent, full unless turned down; 0 turns it off. Settings
  * written before it had a strength say 1 for on. */
@@ -136,8 +136,8 @@ void CtrSettings_Defaults(void)
 #else
     sVoxel = false;
 #endif
-    sPitch = 2;
-    sZoom = 1;
+    sPitch = 4;
+    sZoom = 0;
     sBlur = COUNT(sBlurs) - 1;
     sVoxelBattleMode = 1;
     sShowSpeed = 1;
@@ -234,6 +234,17 @@ void CtrSettings_Load(void)
 #endif
         sSettingsRev = 3;
     }
+    if (sSettingsRev < 4)
+    {
+        /* 80% zoom and 46 degrees are the new defaults.  Only a file still
+         * at the old 100% and 40 degree defaults moves; any other angle or
+         * zoom the player chose stays. */
+        if (sZooms[sZoom] == 100)
+            sZoom = 0;
+        if (sPitches[sPitch] == 40)
+            sPitch = 4;
+        sSettingsRev = 4;
+    }
     CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d pitch=%d zoom=%d blur=%d battle3d=%d speedshow=%d hold=%d menu=%d "
                  "fps=%d run=%d speed=%d%s",
                  sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
@@ -315,7 +326,7 @@ void CtrSettings_Freeze(void)
 int CtrSettings_Text(char *text, unsigned size)
 {
     int used = snprintf(text, size,
-             "settings_rev=3\nvoxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
+             "settings_rev=4\nvoxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
              "hold_speed=%d\nbattle_menu=%d\nfps=%d\nrun=%d\nspeed=%d%s\n",
              sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
              sShowSpeed, sHoldSpeed, sBattleMenu, sShowFps ? 1 : 0, sRunAlways ? 1 : 0,
@@ -423,8 +434,17 @@ void CtrSettings_SetInt(const char *key, int value)
 
 void CtrSettings_SetVoxel(bool on)
 {
+    /* One press, one transition.  A pad bounce, or a direction and a button
+     * in the options menu landing a frame apart, must not flip the renderer
+     * back and queue a second swoop. */
+    static uint64_t sLastChange;
+    uint64_t now = CtrPlatform_Milliseconds();
+
     if (sVoxel == on)
         return;
+    if (sLastChange != 0 && now - sLastChange < 250)
+        return;
+    sLastChange = now;
     sVoxel = on;
     Save();
     CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d", on ? 1 : 0);

@@ -174,20 +174,20 @@ int CtrPlatform_SpeedButtons(bool zl, bool zr);
 /* The port's speed feedback (the game plays the actual effects). */
 void CtrGame_SpeedSound(int event);
 /* The battle scene's own speed, in the same halves: the overworld's SPEED
- * until L or R is pressed in a battle (settings.txt battle_speed=). */
+ * unless BATTLE SPEED sets its own (settings.txt battle_speed=). */
 int CtrSettings_BattleSpeedHalves(void);
 void CtrSettings_StepBattleSpeed(int direction, bool wrap);
 /* The game says each frame whether the battle scene itself is on (not the
  * bag, the party or the summary a battle opens). While it is, and no link or
- * measured scenario holds the speed, L and R are the battle speed's keys
- * (CtrPlatform_BattleSpeedKeys) and the frames follow it. */
+ * measured scenario holds the speed, the frames follow the battle speed
+ * setting. */
 void CtrPlatform_SetBattleScene(bool on);
 bool CtrPlatform_BattleSpeedKeys(void);
-/* L (-1) or R (+1) pressed in the battle scene; shows the speed badge. With
- * `wrap` (R alone, when L is A) the speed goes round from 4x to 1x. */
+/* Changes the battle speed and shows its badge.  No key is bound to this
+ * now: BATTLE SPEED and ZL/ZR are the controls. */
 void CtrPlatform_StepBattleSpeed(int direction, bool wrap);
-/* The speed the badge on the top screen's corner shows, in halves, or 0: in
- * the battle scene, for two seconds after each press of L or R. */
+/* The speed the badge on the top screen's corner shows, in halves, or 0:
+ * in the battle scene, for two seconds after CtrPlatform_StepBattleSpeed. */
 int CtrPlatform_BattleSpeedBadge(void);
 /* False on a fast-forwarded frame that is not shown: the sound engine skips
  * it, so music and effects keep their own speed (3ds_sound.c). */

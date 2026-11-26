@@ -4106,6 +4106,15 @@ static bool BattleWorldFrame(void)
  * the map has one, the 2D field otherwise, black while a map just entered is
  * still being built. True when the world is drawn.
  */
+static void VoxelSwoopStart(bool toVoxel, bool full)
+{
+    if (CtrLog_Verbose())
+        CtrLog_Write(CTR_LOG_VIDEO, "voxel: swoop %s (%s) at frame %lu (mode %u)",
+                     toVoxel ? "in" : "out", full ? "full" : "flash",
+                     (unsigned long)CtrPlatform_FrameCount(), sFieldMode);
+    VoxelSwoop_Begin(&sSwoop, toVoxel, full);
+}
+
 static bool VoxelFrame(bool *blankOut, float *fade2d)
 {
     bool field = !sStage && sCentred == CTR_CENTRED_NONE && !sBattle && CtrGame_IsOverworld();
@@ -4128,18 +4137,22 @@ static bool VoxelFrame(bool *blankOut, float *fade2d)
     else if (wanted != sVoxelWanted)
     {
         sVoxelWanted = wanted;
-        if (field && VoxelSwoop_Active(&sSwoop))
+        /* A change during a swoop cancels it, wherever the field is at that
+         * moment: letting it run on to the old renderer and then starting
+         * the new one was the second animation. */
+        if (VoxelSwoop_Active(&sSwoop))
         {
             VoxelSwoop_Cancel(&sSwoop);
-            sFieldMode = wanted ? FIELD_MODE_VOXEL : FIELD_MODE_PIXEL;
+            if (field)
+                sFieldMode = wanted ? FIELD_MODE_VOXEL : FIELD_MODE_PIXEL;
         }
     }
     if (!VoxelSwoop_Active(&sSwoop))
     {
         if (sFieldMode == FIELD_MODE_VOXEL && field && !wantVoxel && voxelMap)
-            VoxelSwoop_Begin(&sSwoop, false, true);
+            VoxelSwoopStart(false, true);
         else if (sFieldMode == FIELD_MODE_PIXEL && wantVoxel)
-            VoxelSwoop_Begin(&sSwoop, true, true);
+            VoxelSwoopStart(true, true);
     }
     bool overworld = wantVoxel || (voxelMap && VoxelSwoop_ShowsVoxel(&sSwoop));
     VoxelSwoop_Frame(&sSwoop, &swoop);
@@ -4154,12 +4167,12 @@ static bool VoxelFrame(bool *blankOut, float *fade2d)
 
     if (mode == FIELD_MODE_NONE)
         VoxelSwoop_Cancel(&sSwoop);
-    else if (sSwoop.phase == VOXEL_SWOOP_FLASH_IN && sSwoop.frame == 0 && mode != FIELD_MODE_VOXEL)
-        VoxelSwoop_Cancel(&sSwoop);
+    else if (sSwoop.phase == VOXEL_SWOOP_FLASH_IN && sSwoop.frame == 0 && !wantVoxel)
+        VoxelSwoop_Cancel(&sSwoop); /* the option went back off: no world to rise into */
     else if (VoxelSwoop_ShowsVoxel(&sSwoop) && !voxel)
         VoxelSwoop_LoseVoxel(&sSwoop);
     else if (!VoxelSwoop_Active(&sSwoop) && sFieldMode == FIELD_MODE_VOXEL && mode == FIELD_MODE_PIXEL)
-        VoxelSwoop_Begin(&sSwoop, false, false);
+        VoxelSwoopStart(false, false);
     sFieldMode = mode;
     if (voxel)
     {
@@ -4180,17 +4193,30 @@ static void VoxelSwoopStep(bool voxel)
     unsigned steps = lastGameFrame != 0 && gameFrame > lastGameFrame ? (unsigned)(gameFrame - lastGameFrame) : 1u;
 
     if (!VoxelSwoop_Active(&sSwoop))
+    {
+        lastGameFrame = gameFrame;
+        held = 0;
         return;
+    }
     if (steps > VOXEL_SWOOP_STEPS_MAX) steps = VOXEL_SWOOP_STEPS_MAX;
     lastGameFrame = gameFrame;
-    if (sSwoop.phase == VOXEL_SWOOP_FLASH_IN && voxel && CtrVoxel_GetStats()->chunksMissing != 0
-        && held < VOXEL_SWOOP_HOLD_FRAMES)
-        ++held;
-    else
     {
-        held = 0;
-        while (steps-- != 0 && VoxelSwoop_Active(&sSwoop))
-            VoxelSwoop_Step(&sSwoop);
+        /* Coming into the world, hold the flash/rise while the world is not
+         * drawn yet (warming up, atlas filling in): advancing it here made
+         * the 2D picture flash up and started the swoop again next frame. */
+        bool incoming = sSwoop.phase == VOXEL_SWOOP_FLASH_IN || sSwoop.phase == VOXEL_SWOOP_RISE
+                     || sSwoop.phase == VOXEL_SWOOP_TILT_IN;
+        bool incomplete = sSwoop.phase == VOXEL_SWOOP_FLASH_IN && voxel
+                       && CtrVoxel_GetStats()->chunksMissing != 0;
+
+        if ((incomplete || (incoming && !voxel)) && held < VOXEL_SWOOP_HOLD_FRAMES)
+            ++held;
+        else
+        {
+            held = 0;
+            while (steps-- != 0 && VoxelSwoop_Active(&sSwoop))
+                VoxelSwoop_Step(&sSwoop);
+        }
     }
 }
 

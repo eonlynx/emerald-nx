@@ -47,10 +47,12 @@ needed now.
   a few seconds.
 - Right stick click: DAY / NIGHT between AUTO and OFF; its notice stays over
   the counter for a few seconds.
-- Plus: Start. Minus: Select (the registered item; in a battle action menu,
-  the quick ball).
+- Plus: Start. Also opens or closes the bottom panel, as X; in battle, the
+  battle panel.
+- Minus: Select (the registered item; in a battle action menu, the quick
+  ball).
 - X: open the bottom-screen panel, also during conversations; in battle it
-  shows the bottom battle screen (again to close, or B from its main menu).
+  shows the bottom battle screen (again to close).
 - Touch screen (handheld): the bottom screen's window; it is also shown on the
   top screen as in the Android single-screen port.
 
@@ -66,6 +68,9 @@ In GENERAL > SYSTEM, SHOW SPEED (OFF/AUTO/ON) puts the current speed under the
 FPS counter, and HOLD SPEED (OFF/1.5x/2x/3x/4x) chooses the MAX SPEED.
 CLOSE AFTER SAVE (OFF/ON) asks whether to close the game after saving and
 return to the launcher.
+GENERAL > 3D has 3D ZOOM (80% by default) and 3D ANGLE (46 degrees by
+default). In battle, B puts the cursor on RUN, and B again flees; X is the
+only button that hides the battle panel.
 BATTLE > SCENE has 3D BATTLE (OFF/AUTO/ON; AUTO follows VOXEL 3D) and
 BATTLE MENU (CLASSIC/NEW; NEW uses the bottom screen's battle menu on your
 turn).
