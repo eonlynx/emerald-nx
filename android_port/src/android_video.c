@@ -1697,7 +1697,10 @@ bool CtrVideo_Init(void)
     sUTex = glGetUniformLocation(sProgram, "uTex");
     sUColor = glGetUniformLocation(sProgram, "uColor");
     glGenVertexArrays(1, &sVao);
+    glBindVertexArray(sVao);
     sTopTex = Texture(TOP_W, TOP_H, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
+    CtrLog_Write(CTR_LOG_VIDEO, "screen program=%u vao=%u uniforms %d/%d/%d/%d err=0x%x",
+                 sProgram, sVao, sURect, sURotate, sUTex, sUColor, glGetError());
     sBottomTex = Texture(CTR_BOTTOM_HEIGHT, CTR_BOTTOM_WIDTH, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5);
     VoxelGlInit();
     clock_gettime(CLOCK_MONOTONIC, &sNextFrame);
@@ -2109,6 +2112,13 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
         SolidRect(w, h, 64, 0, 128, 64, 0, 1, 0, 1);
     }
 #endif
+    {
+        static int sDrawErrors;
+        const GLenum err = glGetError();
+        if (err != GL_NO_ERROR && sDrawErrors++ < 4)
+            CtrLog_Write(CTR_LOG_ERROR, "GL draw error 0x%x (screen %d, %dx%d)", err,
+                         screen, (int)w, (int)h);
+    }
     if (!eglSwapBuffers(sDpy, sSurf[screen]))
     {
         static int sSwapErrors;
