@@ -15,7 +15,7 @@ SOURCES     := source
 DATA        :=
 INCLUDES    := source
 APP_TITLE   := Emerald NX
-APP_AUTHOR  := Zallax / community
+APP_AUTHOR  := Zallax / eonlynx
 APP_VERSION := 0.5.0-switch
 
 ARCH    := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE

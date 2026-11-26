@@ -67,7 +67,7 @@ CPPFLAGS += -DCTR_DATA_BACKEND=$(DATA_BACKEND)
 TARGET := emerald3ds
 GAME_NRO := emerald-game.nro
 APP_TITLE := Emerald NX
-APP_AUTHOR := Zallax / community
+APP_AUTHOR := Zallax / eonlynx
 APP_VERSION := 0.5.0-switch
 ROOT := ..
 SCRIPTS := ../tools/port_common

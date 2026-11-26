@@ -3717,7 +3717,7 @@ static void DrawBattleText(unsigned bg)
  */
 static unsigned BattleBoxLayers(void)
 {
-    if (!sBattle || !(Reg(0) & 0x200) || (Reg(0xa) & 3) >= (Reg(8) & 3))
+    if (!sBattle || !CtrGame_LevelUpBoxShown())
         return 0;
     return 1u << 1;
 }

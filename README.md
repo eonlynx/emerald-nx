@@ -44,7 +44,7 @@
 ## What it is
 
 Emerald NX runs the Pokémon Emerald decompilation **natively on Nintendo
-Switch** — no emulator. It is a port of the Emerald 3DS engine to Horizon:
+Switch** - no emulator. It is a port of the Emerald 3DS engine to Horizon:
 the same game bridge, touch interface, voxel overworld and enhancements, with
 a Switch backend for video, audio, input, filesystem and lifecycle.
 
@@ -53,10 +53,10 @@ it. The engine keeps addresses in 32-bit fields, so the game image, heap,
 stack and newlib heap all stay in the low address range; the code itself runs
 as native AArch64.
 
-The game is presented on the Switch's single screen: the 432×240 top picture
+The game is presented on the Switch's single screen: the 432x240 top picture
 follows the display's aspect, and the bottom-screen interface is drawn as a
 panel over it, as in the Android single-screen version. Handheld mode renders
-at 1280×720, docked at 1920×1080.
+at 1280x720, docked at 1920x1080.
 
 ## Features
 
@@ -66,7 +66,7 @@ at 1280×720, docked at 1920×1080.
 | **Single-screen layout** | The game on top, with the bottom screen's touch interface as a panel over it. Docked and handheld modes are handled without restarting. |
 | **Low-address loader** | A two-stage NRO loader reserves the image, heap and stack below 4 GiB with `svcMapProcessCodeMemory`, then enters the game. |
 | **Single-file game data** | `emerald3ds.pak` holds graphics, maps, scripts, songs, tables and voxel data in one file, so the SD card copy is one `data/` folder of 15 engine files plus the pack, not 6,400 loose files. |
-| **Full resolution** | 1280×720 handheld / 1920×1080 docked; frame pacing uses the same 59.8261 Hz clock as the 3DS and Android ports. |
+| **Full resolution** | 1280x720 handheld / 1920x1080 docked; frame pacing uses the same 59.8261 Hz clock as the 3DS and Android ports. |
 | **HOME, sleep and dock** | `appletMainLoop`/`appletHook` handle HOME and exit, focus loss pauses audio, and the EGL surface is recreated when the console changes mode. |
 | **Optional voxel overworld** | Modelled buildings, trees, signposts and terrain relief from Emerald 3DS, rendered with the same voxel renderer through GLES3. |
 | **HD battle interface** | Wide-screen battle boxes, the 3D battle view and the bottom-screen interface. |
@@ -138,15 +138,15 @@ Download the latest `emerald-nx.zip` from the repository's
 
 3. The game writes:
 
-   - `sdmc:/switch/emerald-nx/loader.log` — the loader's image/heap/syscall
+   - `sdmc:/switch/emerald-nx/loader.log` - the loader's image/heap/syscall
      log, recreated on every launch.
-   - `sdmc:/switch/emerald-nx/emerald-nx.log` — the game's log, recreated on
+   - `sdmc:/switch/emerald-nx/emerald-nx.log` - the game's log, recreated on
      every launch. The previous run is kept as `emerald-nx-prev.log`, and a
      run stops writing at 1 MiB, so the two files together never exceed
      2 MiB.
-   - `sdmc:/switch/emerald-nx/boot.log` — a few early-startup breadcrumbs,
+   - `sdmc:/switch/emerald-nx/boot.log` - a few early-startup breadcrumbs,
      recreated on every launch (capped at 4 KiB).
-   - `sdmc:/switch/emerald-nx/settings.txt` and `*.sav` — settings and saves.
+   - `sdmc:/switch/emerald-nx/settings.txt` and `*.sav` - settings and saves.
 
    By default the log keeps startup steps, errors and one progress line per
    minute. To diagnose a problem, create an empty file named
@@ -182,9 +182,11 @@ containing them unless you have the rights. See
 
 DAY / NIGHT starts in AUTO on Switch. In the bottom panel, **UP** enters the
 category on show at its last item, and **DOWN** from that last item returns to
-the category; the NUZLOCKE tracker also takes the D-pad and A. HOME is handled
-by the system; it is not mapped as a game button. The Switch lifecycle pauses
-the audio feeder while the HOME menu or sleep owns the screen.
+the category; the NUZLOCKE tracker also takes the D-pad and A. GENERAL >
+SYSTEM has CLOSE AFTER SAVE: after a save it asks whether to close the game
+and return to the launcher. HOME is handled by the system; it is not mapped as
+a game button. The Switch lifecycle pauses the audio feeder while the HOME menu
+or sleep owns the screen.
 
 ## Building from source
 
@@ -284,8 +286,8 @@ documentation is kept in
   decoder; the touch is restricted to the bottom-screen panel and followed
   until release.
 - **Filesystem.** `switch_fs.c` translates the 3DS paths used by the engine:
-  `romfs:/` → `sdmc:/switch/emerald-nx/data/`, the old `sdmc:/3ds/emerald3ds/`
-  → `sdmc:/switch/emerald-nx/`, and legacy Pokeemerald paths to `legacy/`.
+  `romfs:/` -> `sdmc:/switch/emerald-nx/data/`, the old `sdmc:/3ds/emerald3ds/`
+  -> `sdmc:/switch/emerald-nx/`, and legacy Pokeemerald paths to `legacy/`.
 - **Lifecycle.** `switch_lifecycle.c` is the only unit that includes
   `<switch.h>` beside the libctru-compatible shim; it exposes `appletMainLoop`
   and focus state without mixing `Result`/`Handle` definitions.
@@ -323,9 +325,9 @@ More detail is in [switch_port/README.md](switch_port/README.md) and
   ([The Oracles Project NX](https://github.com/toniisound/The-Oracles-Project-NX),
   [oracles-nx](https://github.com/toniisound/oracles-nx),
   [smbr-nx](https://github.com/toniisound/smbr-nx),
-  [DKC1/2/3Recomp-NX](https://github.com/toniisound/DKC1Recomp-NX)) — NRO
+  [DKC1/2/3Recomp-NX](https://github.com/toniisound/DKC1Recomp-NX)) - NRO
   packaging, EGL/GLES, audout, input and applet patterns.
-- **[Alexgg1014](https://github.com/Alexgg1014)**: Dusklight's Switch port —
+- **[Alexgg1014](https://github.com/Alexgg1014)**: Dusklight's Switch port -
   low-address code-memory staging, per-range permissions, cache handling and
   display-mode polling.
 - **[switchbrew](https://github.com/switchbrew)**: `nx-hbloader`, the NRO load
@@ -376,7 +378,7 @@ projects. The 3DS and Android READMEs are kept for their own platforms.
 
 | Upstream | Switch port |
 | :--- | :--- |
-| [TwilitRealm/dusklight](https://github.com/TwilitRealm/dusklight) | [Dusklight — Alek's Ultimate NX Edition](https://github.com/Alexgg1014/The-Legend-of-Zelda-Twilight-Princess-Alek-s-Ultimate-NX-Edition) |
+| [TwilitRealm/dusklight](https://github.com/TwilitRealm/dusklight) | [Dusklight - Alek's Ultimate NX Edition](https://github.com/Alexgg1014/The-Legend-of-Zelda-Twilight-Princess-Alek-s-Ultimate-NX-Edition) |
 | [thibautbus/top](https://github.com/thibautbus/top) | [The Oracles Project NX](https://github.com/toniisound/The-Oracles-Project-NX) |
 | [kirby-letsgo/oracles-decomp](https://github.com/kirby-letsgo/oracles-decomp) | [oracles-nx](https://github.com/toniisound/oracles-nx) |
 

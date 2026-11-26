@@ -43,6 +43,10 @@ needed now.
 - L/R: the GBA L/R buttons.
 - ZL/ZR: hold either for the MAX SPEED (4x by default); release returns to 1x.
   Both together lock the MAX SPEED, or return to 1x.
+- Left stick click: SHOW FPS on or off; its notice stays over the counter for
+  a few seconds.
+- Right stick click: DAY / NIGHT between AUTO and OFF; its notice stays over
+  the counter for a few seconds.
 - Plus: Start. Minus: Select (the registered item; in a battle action menu,
   the quick ball).
 - X: open the bottom-screen panel, also during conversations; in battle it
@@ -50,8 +54,14 @@ needed now.
 - Touch screen (handheld): the bottom screen's window; it is also shown on the
   top screen as in the Android single-screen port.
 
+DAY / NIGHT starts in AUTO. In the bottom panel, UP enters the category on
+show at its last item, and DOWN from that last item returns to the category;
+the NUZLOCKE tracker also takes the D-pad and A.
+
 In GENERAL > SYSTEM, SHOW SPEED (OFF/AUTO/ON) puts the current speed under the
 FPS counter, and HOLD SPEED (OFF/1.5x/2x/3x/4x) chooses the MAX SPEED.
+CLOSE AFTER SAVE (OFF/ON) asks whether to close the game after saving and
+return to the launcher.
 BATTLE > SCENE has 3D BATTLE (OFF/AUTO/ON; AUTO follows VOXEL 3D) and
 BATTLE MENU (CLASSIC/NEW; NEW uses the bottom screen's battle menu on your
 turn).

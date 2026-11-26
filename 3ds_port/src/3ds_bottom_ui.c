@@ -2474,7 +2474,7 @@ static u8 sSaveStep;
 /* Room for the longest, gText_DifferentSaveFile (some 230 bytes). */
 static u8 sSaveMessage[256];
 
-enum { SAVE_ASK, SAVE_OVERWRITE, SAVE_DONE };
+enum { SAVE_ASK, SAVE_OVERWRITE, SAVE_DONE, SAVE_CLOSE };
 
 /* Learned once: the party menu's running callback (static in party_menu.c). */
 static MainCallback sPartyMenuCallback;
@@ -6198,10 +6198,43 @@ static void DoSave(void)
     {
         status = TrySavingData(SAVE_NORMAL);
     }
-    StringExpandPlaceholders(sSaveMessage, status == SAVE_STATUS_OK ? gText_PlayerSavedGame : gText_SaveError);
     if (status == SAVE_STATUS_OK)
+    {
         PlaySE(SE_SAVE);
-    sSaveStep = SAVE_DONE;
+        if (CtrSettings_GetInt("close_after_save", 0) == 1)
+        {
+            size_t n = CtrLocale_ToGame(sSaveMessage, sizeof(sSaveMessage),
+                                        CTR_TEXT("Player saved the game.",
+                                                 "Partida guardada.",
+                                                 "Partie sauvegardée.",
+                                                 "Partita salvata.",
+                                                 "Jogo salvo.",
+                                                 "Spiel gespeichert.",
+                                                 "セーブしました。"));
+
+            if (n + 1 < sizeof(sSaveMessage))
+            {
+                sSaveMessage[n] = 0xFE;   /* the game's line break */
+                CtrLocale_ToGame(sSaveMessage + n + 1, sizeof(sSaveMessage) - n - 1,
+                                 CTR_TEXT("Do you want to close the game?",
+                                          "¿Quieres cerrar el juego?",
+                                          "Fermer le jeu ?",
+                                          "Chiudere il gioco?",
+                                          "Fechar o jogo?",
+                                          "Spiel schliessen?",
+                                          "ゲームを終了しますか？"));
+            }
+            sSaveStep = SAVE_CLOSE;
+            return;
+        }
+        StringExpandPlaceholders(sSaveMessage, gText_PlayerSavedGame);
+        sSaveStep = SAVE_DONE;
+    }
+    else
+    {
+        StringExpandPlaceholders(sSaveMessage, gText_SaveError);
+        sSaveStep = SAVE_DONE;
+    }
 }
 
 static void OpenSave(void)
@@ -6640,6 +6673,19 @@ static void Activate(u8 id, u8 mode)
         NuzlockeTap(id);
         break;
     case SCR_SAVE:
+        if (sSaveStep == SAVE_CLOSE)
+        {
+            /* Saved: YES quits to the launcher, NO asks again. */
+            if (id == HIT_YES)
+                CtrPlatform_RequestExit();
+            else if (id == HIT_NO)
+            {
+                OpenSave();
+                sScreen = SCR_SAVE;
+                sForceRedraw = TRUE;
+            }
+            break;
+        }
         if (id == HIT_YES && FieldIdle())
         {
             if (sSaveStep == SAVE_ASK && gSaveFileStatus != SAVE_STATUS_EMPTY && gSaveFileStatus != SAVE_STATUS_CORRUPT)
@@ -6651,10 +6697,18 @@ static void Activate(u8 id, u8 mode)
             else
                 DoSave();
         }
-        else if (id == HIT_NO || id == HIT_OK)
+        else if (id == HIT_NO)
         {
+            /* Declined: back to the map. */
             OpenSave();
             sScreen = SCR_MAP;
+        }
+        else if (id == HIT_OK)
+        {
+            /* The saved screen's OK asks again instead of leaving for the
+             * map: the question is what the SAVE button is for. */
+            OpenSave();
+            sScreen = SCR_SAVE;
         }
         break;
     case SCR_OPTION:
@@ -6924,8 +6978,9 @@ uint16_t CtrBottom_FilterKeys(uint16_t held)
         return sFocus != FOCUS_NONE || sInside != INSIDE_NONE || sSwallow ? CTR_SOFT_RESET_KEYS : held;
     if (sNativeBPass && (sFocus != FOCUS_NONE || sInside != INSIDE_NONE || !NativeBackToDock()))
         sNativeBPass = FALSE;
-    /* The second B after the dock has the focus closes the game's screen. */
-    if (sNativeBPass && (held & B_BUTTON))
+    /* The second B after the dock has the focus closes the game's screen;
+     * not the B still held from the first press. */
+    if (sNativeBPass && !sSwallow && (held & B_BUTTON))
     {
         sNativeBPass = FALSE;
         return held;
@@ -7392,12 +7447,15 @@ static void ChooseColumnItem(u8 mode, u8 item)
     Activate(HIT_COLUMN + item, mode);
     if (gameScreen)
         LeaveFocus();
-    else if (item == SCR_OPTION || item == SCR_SAVE || item == SCR_MAP || item == SCR_CARD)
+    else if (item == SCR_OPTION || item == SCR_SAVE || item == SCR_MAP || item == SCR_CARD
+          || item == SCR_NUZLOCKE)
     {
         sFocus = FOCUS_NONE;
         sInside = item == SCR_OPTION ? INSIDE_OPTIONS : item == SCR_SAVE ? INSIDE_SAVE
-                : item == SCR_MAP ? INSIDE_MAP : INSIDE_CARD;
+                : item == SCR_MAP ? INSIDE_MAP : item == SCR_CARD ? INSIDE_CARD : INSIDE_NUZLOCKE;
         sForceRedraw = TRUE;
+        if (item == SCR_NUZLOCKE)
+            NuzlockeFocusLast();
         if (item == SCR_OPTION)
         {
             sOptLevel = 0;
@@ -7417,7 +7475,7 @@ static void ChooseColumnItem(u8 mode, u8 item)
 static void SaveKeys(u8 mode, u16 down)
 {
     /* NO is the last choice: DOWN from it returns to the dock's SAVE. */
-    if (sSaveStep != SAVE_DONE && (down & DPAD_DOWN) && sSaveChoice == 1)
+    if (sSaveStep != SAVE_DONE && sSaveStep != SAVE_CLOSE && (down & DPAD_DOWN) && sSaveChoice == 1)
     {
         sInside = INSIDE_NONE;
         sFocus = SCR_SAVE;
@@ -7426,7 +7484,7 @@ static void SaveKeys(u8 mode, u16 down)
         return;
     }
     /* YES is the first choice: UP from it goes to the header. */
-    if (sSaveStep != SAVE_DONE && (down & DPAD_UP) && sSaveChoice == 0)
+    if (sSaveStep != SAVE_DONE && sSaveStep != SAVE_CLOSE && (down & DPAD_UP) && sSaveChoice == 0)
     {
         u8 header = HeaderFocus();
 
@@ -7503,7 +7561,6 @@ static void CardKeys(u8 mode, u16 down)
 
 static void MapKeys(u8 mode, u16 down)
 {
-    (void)mode;
     if (sMapMoving)
     {
         /* A picked the map: now the directions walk its cursor. */
@@ -7686,6 +7743,14 @@ static void ProcessKeys(u8 mode)
             PlaySE(SE_SELECT);
             return;
         }
+        if (mode == MODE_FIELD && sScreen == SCR_NUZLOCKE)
+        {
+            sInside = INSIDE_NUZLOCKE;
+            NuzlockeFocusLast();
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
         sFocus = sShown.screen < SCR_COUNT && ColumnItemAvailable(sShown.screen) ? sShown.screen : SCR_MAP;
         PlaySE(SE_SELECT);
         return;
@@ -7696,10 +7761,11 @@ static void ProcessKeys(u8 mode)
     {
         if (!x && NativeBackToDock())
         {
-            /* The next B is the game's: close the screen, not the panel. */
+            /* The next B is the game's: close the screen, not the panel.
+             * The one still held from this press is not it. */
             sFocus = FOCUS_NONE;
             sInside = INSIDE_NONE;
-            sSwallow = FALSE;
+            sSwallow = TRUE;
             sNativeBPass = TRUE;
         }
         else
@@ -7757,6 +7823,7 @@ static void ProcessKeys(u8 mode)
         {
             /* The zoom lens is the map's last control. */
             sInside = INSIDE_MAP;
+            sFocus = FOCUS_NONE;
             sMapFocus = 1;
             sMapMoving = FALSE;
             sForceRedraw = TRUE;
@@ -7765,6 +7832,7 @@ static void ProcessKeys(u8 mode)
         else if (sFocus == SCR_CARD && sShown.screen == SCR_CARD)
         {
             sInside = INSIDE_CARD;
+            sFocus = FOCUS_NONE;
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
         }
@@ -7772,6 +7840,7 @@ static void ProcessKeys(u8 mode)
         {
             /* NO is the save question's last choice. */
             sInside = INSIDE_SAVE;
+            sFocus = FOCUS_NONE;
             sSaveChoice = 1;
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
@@ -7779,6 +7848,7 @@ static void ProcessKeys(u8 mode)
         else if (sFocus == SCR_NUZLOCKE && sShown.screen == SCR_NUZLOCKE)
         {
             sInside = INSIDE_NUZLOCKE;
+            sFocus = FOCUS_NONE;
             NuzlockeFocusLast();
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);

@@ -198,6 +198,8 @@ void CtrGame_VBlank(void);
 /* The field is on screen (CB2_Overworld), whichever way it is drawn. */
 bool CtrGame_IsOverworld(void);
 bool CtrGame_IsOutdoor(void);
+/* The battle's level-up stats box is on screen (battle_script_commands.c). */
+bool CtrGame_LevelUpBoxShown(void);
 bool CtrGame_LocalTimeSeconds(unsigned *seconds);
 /* A field effect is storing into VRAM directly (not through a copy). */
 bool CtrGame_FieldRawVram(void);

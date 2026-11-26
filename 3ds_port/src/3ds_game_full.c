@@ -25,6 +25,7 @@
 #include "scanline_effect.h"
 #include "item_menu.h"
 #include "party_menu.h"
+#include "battle.h"
 #include "battle_main.h"
 #include "fldeff_misc.h"
 #include "field_effect.h"
@@ -689,6 +690,13 @@ bool CtrGame_IsOverworld(void)
     if (gMapHeader.mapLayout == NULL || gSaveBlock1Ptr == NULL)
         return false;
     return gMain.callback2 == CB2_Overworld || gMain.callback2 == CB2_OverworldBasic;
+}
+
+/* The level-up box is drawn from state 4 (page 1) to state 8 (waiting for
+ * the key that closes it); the banner before it is BG2, not the box. */
+bool CtrGame_LevelUpBoxShown(void)
+{
+    return gBattleScripting.drawlvlupboxState >= 4 && gBattleScripting.drawlvlupboxState <= 8;
 }
 
 bool CtrGame_IsOutdoor(void)

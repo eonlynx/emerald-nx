@@ -661,6 +661,8 @@ static void DrawRegionMap(const ViewState *s)
         DrawEncounters(s);
         if (s->encPages > 1)
             AddHit(ENC_X, ENC_Y, ENC_W, ENC_H, HIT_MAP_PAGE);
+        if (sInside == INSIDE_MAP)
+            DrawKeyFocus(ENC_X - 3, ENC_Y - 3, ENC_W + 6, ENC_H + 6);
     }
     else
     {
@@ -890,14 +892,7 @@ static void SaveButton(int x, int w, int y, int h, const u8 *label, Rgb colour, 
 
     TextIn(label, x, oy, w, h, &sNormal, 'c', STYLE_WHITE, 4);
     if (focused)
-    {
-        u16 c = sStyle[STYLE_WHITE].fg;
-
-        FillRect(x + 1, y, w - 2, 1, c);
-        FillRect(x + 1, y + h - 1, w - 2, 1, c);
-        FillRect(x, y + 1, 1, h - 2, c);
-        FillRect(x + w - 1, y + 1, 1, h - 2, c);
-    }
+        DrawKeyFocus(x, y, w, h);
     if (enabled)
         AddHit(x, y, w, h, id);
 }

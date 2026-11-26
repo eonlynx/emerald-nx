@@ -15,7 +15,7 @@ SOURCES     := source
 DATA        :=
 INCLUDES    := source
 APP_TITLE   := Emerald NX Game (spike)
-APP_AUTHOR  := Zallax / community
+APP_AUTHOR  := Zallax / eonlynx
 APP_VERSION := 0.1.0-spike
 
 ARCH    := -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE

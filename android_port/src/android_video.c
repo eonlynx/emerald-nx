@@ -2411,6 +2411,10 @@ static int sQuadW, sQuadH;
 static unsigned sFieldMode;
 static VoxelSwoop sSwoop;
 static bool sFieldVoxel;
+/* The VOXEL 3D setting the swoop is heading to. A change made while the
+ * other way is still moving snaps to the new renderer instead of playing a
+ * second animation after the first. */
+static bool sVoxelWanted, sVoxelWantedKnown;
 /* The palette fade, as 3ds_video.c's DetectPaletteFade finds a uniform one. */
 static float sPaletteFade;
 static uint16_t sPaletteFadeColor;
@@ -3511,6 +3515,42 @@ static void BoxDraw(int down)
     }
 }
 
+/*
+ * The level-up box (battle_script_commands.c, Cmd_drawlvlupbox): BG1 put in
+ * front of BG0 while it is up. Magnified with the scene it reaches past the
+ * screen's edge and the text box covers it; it is drawn with the text box
+ * instead, at 1:1 over it, as 3ds_video.c's BattleBoxLayers does.
+ */
+/* The level-up box's own 1:1 copy, made once a frame while it is up. */
+static uint32_t sLevelBox[TOP_W_MAX * GBA_H];
+static GLuint sLevelBoxTex;
+static bool sLevelBoxReady;
+
+static bool LevelBoxShown(void)
+{
+    /* The game's own state: the BG1 priority test alone is true through
+     * ordinary battles too, duplicated the opponents' sprites. */
+    return sBattle && CtrGame_LevelUpBoxShown();
+}
+
+static void LevelBoxDraw(void)
+{
+    const float left = (TOP_W - GBA_W) / 2.0f, top = TOP_H - GBA_H;
+
+    if (!sLevelBoxReady || !LevelBoxShown())
+        return;
+    if (!sLevelBoxTex)
+        sLevelBoxTex = Texture(TOP_W, GBA_H, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
+    glBindTexture(GL_TEXTURE_2D, sLevelBoxTex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TOP_W, GBA_H, GL_RGBA, GL_UNSIGNED_BYTE, sLevelBox);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+    Quad(sLevelBoxTex, false, QUAD_TEXTURE, left + 144, top + 56, left + GBA_W, top + GBA_H,
+         144.0f / TOP_W, 56.0f / GBA_H, (float)GBA_W / TOP_W, 1.0f, 1, 1, 1, 1, 1, 1);
+}
+
 /* The battle's picture (240x160 at sTop's top left, premultiplied) laid out
  * over the composite: the scene magnified, the info boxes, the text box
  * under them. */
@@ -3537,14 +3577,16 @@ static void BattlePictureOver(void)
         int down;
 
         if (BoxShown(&down))
-        {
             BoxDraw(down);
-            return;
+        else
+        {
+            glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+            Quad(sOverlayTex, false, QUAD_TEXTURE, (TOP_W - GBA_W) / 2, BATTLE_BOX_Y, (TOP_W + GBA_W) / 2, TOP_H,
+                 0, v1, (float)GBA_W / TOP_W, (float)(BATTLE_VIEW_H + GBA_H - BATTLE_BAND_TOP) / TOP_H,
+                 1, 1, 1, 1, 1, 1);
         }
     }
-    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-    Quad(sOverlayTex, false, QUAD_TEXTURE, (TOP_W - GBA_W) / 2, BATTLE_BOX_Y, (TOP_W + GBA_W) / 2, TOP_H,
-         0, v1, (float)GBA_W / TOP_W, (float)(BATTLE_VIEW_H + GBA_H - BATTLE_BAND_TOP) / TOP_H, 1, 1, 1, 1, 1, 1);
+    LevelBoxDraw();
 }
 
 /* The 2D battle laid out the same way, on black. */
@@ -3588,22 +3630,53 @@ static void ComposeBattleWorld(void)
 /* The battle's view, GBA (-BATTLE_MARGIN_X, -BATTLE_MARGIN_Y) on, into sTop. */
 static void BattleRender(void)
 {
+    unsigned savedExclude = sExcludeLayers;
+    bool levelBox = LevelBoxShown();
+
     sBattleSliding = CtrBattleIntro_Sliding() != 0;
     for (unsigned bg = 0; bg < 4; ++bg)
         sBattlePicture[bg] = BattlePictureLayer(bg);
     sBattleWide = true;
+    /* The level-up box is drawn at 1:1 over the text box, not magnified
+     * with the scene (3ds_video.c BattleBoxLayers). */
+    if (levelBox)
+        sExcludeLayers |= 1u << 1;
     /* The scene, all of the view, the text box left out ... */
     sBattleScene = true;
     sOrgX = -BATTLE_MARGIN_X;
     sOrgY = -BATTLE_MARGIN_Y;
     RenderPicture(BATTLE_VIEW_W, BATTLE_VIEW_H, 0, 0);
     sBattleScene = false;
+    sExcludeLayers = savedExclude;
     /* ... and the GBA's text box band, lines 112-160, under it in sTop. */
     sOrgX = 0;
     sOrgY = BATTLE_BAND_TOP;
     RenderPicture(GBA_W, GBA_H - BATTLE_BAND_TOP, 0, BATTLE_VIEW_H);
     sBattleWide = false;
     sOrgX = sOrgY = 0;
+    sLevelBoxReady = false;
+    if (levelBox)
+    {
+        uint32_t *savedOut = sOut;
+        bool savedWide = sBattleWide, savedScene = sBattleScene;
+        int savedOrgX = sOrgX, savedOrgY = sOrgY;
+
+        /* BG1 alone at 1:1: the box over the text box, whatever the GBA's
+         * priority is (3ds_video.c BattleBoxLayers). */
+        sOut = sLevelBox;
+        sBattleWide = false;
+        sBattleScene = false;
+        sOrgX = sOrgY = 0;
+        sExcludeLayers = 0x0Du;   /* BG0, BG2 and BG3 left out */
+        RenderPicture(GBA_W, GBA_H, 0, 0);
+        sOut = savedOut;
+        sBattleWide = savedWide;
+        sBattleScene = savedScene;
+        sOrgX = savedOrgX;
+        sOrgY = savedOrgY;
+        sLevelBoxReady = true;
+    }
+    sExcludeLayers = savedExclude;
 }
 
 /*
@@ -4037,13 +4110,30 @@ static bool VoxelFrame(bool *blankOut, float *fade2d)
 {
     bool field = !sStage && sCentred == CTR_CENTRED_NONE && !sBattle && CtrGame_IsOverworld();
     bool voxelMap = sVoxelReady && field && CtrVoxel_IsAvailable();
-    bool wantVoxel = voxelMap && CtrSettings_Voxel();
+    bool wanted = CtrSettings_Voxel();
+    bool wantVoxel = voxelMap && wanted;
     VoxelSwoopFrame swoop;
 
     *blankOut = false;
     *fade2d = 0.0f;
     if (!sVoxelReady)
         return false;
+    /* The option changed under a swoop: go straight to the renderer asked
+     * for, not on to the old one and then back. */
+    if (!sVoxelWantedKnown)
+    {
+        sVoxelWanted = wanted;
+        sVoxelWantedKnown = true;
+    }
+    else if (wanted != sVoxelWanted)
+    {
+        sVoxelWanted = wanted;
+        if (field && VoxelSwoop_Active(&sSwoop))
+        {
+            VoxelSwoop_Cancel(&sSwoop);
+            sFieldMode = wanted ? FIELD_MODE_VOXEL : FIELD_MODE_PIXEL;
+        }
+    }
     if (!VoxelSwoop_Active(&sSwoop))
     {
         if (sFieldMode == FIELD_MODE_VOXEL && field && !wantVoxel && voxelMap)

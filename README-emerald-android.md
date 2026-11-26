@@ -122,12 +122,12 @@ ROM hacks are not supported.
 | **Day/night lighting** | Optional outdoor lighting, lit windows and street lamps, and a faster clock, as in Emerald 3DS. |
 | **Local wireless play** | The Pokémon Center's link rooms between two devices nearby, over Bluetooth LE: no router, no internet. |
 | **Enhancements** | Physical/special split, IVs and EVs on the summary, infinite TMs, running indoors, Repel prompt, visible wild Pokémon, fast-forward (ZR/ZL) and more, all optional. |
-| **3D SPRITES** *(Android only)* | People and Pokémon in the voxel world drawn 1 to 3 voxels deep instead of flat (OPTION → WORLD → 3D). |
+| **3D SPRITES** *(Android only)* | People and Pokémon in the voxel world drawn 1 to 3 voxels deep instead of flat (OPTION -> WORLD -> 3D). |
 
 ### A new perspective on Hoenn
 
 The voxel overworld is **off by default**. Open **OPTION** on the bottom
-screen and enable **VOXEL 3D** (WORLD → 3D), then adjust **3D ANGLE** and
+screen and enable **VOXEL 3D** (WORLD -> 3D), then adjust **3D ANGLE** and
 **3D ZOOM**. **3D SPRITES** gives the characters depth.
 
 > **3D mode is a work in progress** in Emerald 3DS itself: many towns and
@@ -136,7 +136,7 @@ screen and enable **VOXEL 3D** (WORLD → 3D), then adjust **3D ANGLE** and
 
 ### Follower Pokémon
 
-Turn it on in OPTION → WORLD → FIELD → **FOLLOWER**. The party's first
+Turn it on in OPTION -> WORLD -> FIELD -> **FOLLOWER**. The party's first
 Pokémon then follows you around the overworld, and talking to it shows how
 it feels, in HeartGold/SoulSilver's words.
 

@@ -16,7 +16,7 @@
   <a href="https://ko-fi.com/zallax"><img src="https://img.shields.io/badge/Ko--fi-Buy_me_a_coffee-FF5E5B?style=for-the-badge&amp;logo=kofi&amp;logoColor=white" alt="Buy Zallax a coffee on Ko-fi"></a>
 </p>
 
-## Get the latest version — directly in your browser
+## Get the latest version - directly in your browser
 
 **Visit [emerald-3ds.com](https://emerald-3ds.com/) to generate and download the latest version from your own supported ROM. No desktop builder or source code download is required.**
 
@@ -102,7 +102,7 @@ interface on the bottom screen replaces the START menu. Enable the optional
 The voxel overworld is **off by default**. Open **OPTION** on the bottom
 screen and enable **VOXEL 3D**, then adjust **3D ANGLE** and **3D ZOOM** to
 set your camera. On a New 3DS, raise the 3D slider for a stereoscopic world;
-**3D WORLD** and **3D DEPTH** (OPTION → SETTINGS, second page) control it.
+**3D WORLD** and **3D DEPTH** (OPTION -> SETTINGS, second page) control it.
 
 > **3D mode is a work in progress.** Many towns and routes now have modelled
 > buildings and relief, but large parts of the map and most interiors are
@@ -111,7 +111,7 @@ set your camera. On a New 3DS, raise the 3D slider for a stereoscopic world;
 
 ### Day and night
 
-In **OPTION → ENHANCEMENTS**, set **DAY / NIGHT** to **AUTO** to enable
+In **OPTION -> ENHANCEMENTS**, set **DAY / NIGHT** to **AUTO** to enable
 outdoor lighting inspired by HeartGold/SoulSilver. It is **OFF by default**;
 indoors, caves, underwater areas, menus and classic battles keep their
 original colours. Nights have a soft moonlit blue, and supported voxel
@@ -124,14 +124,14 @@ GBA save format stay original, and time with the console asleep or off runs
 at 1X. Back up `emerald3ds.clock` and `emerald3ds.clock.bak` together with
 `emerald3ds.sav`.
 
-**WILD POKEMON → TIMED** changes some grass encounters by morning, day and
-night on routes 101–104, 110, 116–117, 119–121 and 123 (**ORIGINAL**, the
-default, keeps the original tables). **SHOW CLOCK → ON** adds the time to the
+**WILD POKEMON -> TIMED** changes some grass encounters by morning, day and
+night on routes 101-104, 110, 116-117, 119-121 and 123 (**ORIGINAL**, the
+default, keeps the original tables). **SHOW CLOCK -> ON** adds the time to the
 bottom screen's map. More in the [day/night guide](docs/DAY_NIGHT.md).
 
 ### Follower Pokémon and local wireless
 
-**OPTION → ENHANCEMENTS → FOLLOWER** makes your lead Pokémon walk behind you.
+**OPTION -> ENHANCEMENTS -> FOLLOWER** makes your lead Pokémon walk behind you.
 Its sprites and messages come from HeartGold/SoulSilver: the builder
 downloads them while it builds (the only step that needs an Internet
 connection; without one, the game is built without them).
@@ -283,7 +283,7 @@ on Ko-fi. It's an optional way to support my work on the project, and every
 coffee is appreciated. Thank you for being part of the adventure!
 
 <p align="center">
-  <a href="https://ko-fi.com/zallax"><img src="https://img.shields.io/badge/Buy_me_a_coffee-Support_on_Ko--fi-FF5E5B?style=for-the-badge&amp;logo=kofi&amp;logoColor=white" alt="Buy Zallax a coffee — support on Ko-fi"></a>
+  <a href="https://ko-fi.com/zallax"><img src="https://img.shields.io/badge/Buy_me_a_coffee-Support_on_Ko--fi-FF5E5B?style=for-the-badge&amp;logo=kofi&amp;logoColor=white" alt="Buy Zallax a coffee - support on Ko-fi"></a>
 </p>
 
 You can also support the project by starring the repository, sharing it
