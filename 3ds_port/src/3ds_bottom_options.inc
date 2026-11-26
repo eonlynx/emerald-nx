@@ -891,7 +891,9 @@ static void OptionKeys(u16 down)
     {
         if (sOptFocus == OptionFirst())
         {
-            sOptLevel = 1;
+            /* Nothing above the first row: the header's Y/RUN are next. */
+            sInside = INSIDE_NONE;
+            sFocus = HeaderFocus();
             PlaySE(SE_SELECT);
         }
         else if (sOptFocus > 0)
@@ -900,7 +902,12 @@ static void OptionKeys(u16 down)
     else if (down & DPAD_DOWN)
     {
         if (sOptFocus == OptionLast())
-            MoveFocus(&sOptFocus, (u8)OptionFirst());
+        {
+            /* Past the last row, the dock's categories are next. */
+            sInside = INSIDE_NONE;
+            sFocus = SCR_OPTION;
+            PlaySE(SE_SELECT);
+        }
         else
             MoveFocus(&sOptFocus, OptionStep(sOptFocus, 1));
     }

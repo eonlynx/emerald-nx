@@ -2440,8 +2440,9 @@ static u8 sSaveChoice;
  * the B or A that left it must not reach the game. */
 static bool8 sSwallow;
 /* B on a game screen in the panel: the first press returns the focus to the
- * dock, the next one is handed to the game so it can close the screen. */
-static bool8 sNativeBFocus, sNativeBPass;
+ * dock, the next one is handed to the game so it can close the screen.  DOWN
+ * past a list's last row does the same as B's first press. */
+static bool8 sNativeBFocus, sNativeBPass, sNativeDownFocus, sNativeUpFocus;
 static u32 sFrames;
 
 static bool8 RectsMeet(int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
@@ -3808,6 +3809,8 @@ static bool8 Prefetch(const ViewState *s)
     }
     return TRUE;
 }
+
+static u8 HeaderFocus(void);
 
 #include "3ds_bottom_shell.inc"
 #include "3ds_bottom_field.inc"
@@ -5345,7 +5348,7 @@ static void Render(const ViewState *s)
             lines = 0;
         }
 
-        if (total > CTR_RENDER_SLOW_MS && lines < CTR_RENDER_SLOW_LINES)
+        if (CtrLog_Verbose() && total > CTR_RENDER_SLOW_MS && lines < CTR_RENDER_SLOW_LINES)
         {
             if (blitted)
                 CtrBottom_LastBlitTicks(&copy, &flush);
@@ -6442,7 +6445,8 @@ static void Activate(u8 id, u8 mode)
 {
     if (id == HIT_NONE)
         return;
-    CtrLog_Write(CTR_LOG_INPUT, "bottom screen: tap %02x (mode %u screen %u)", id, mode, sShown.screen);
+    if (CtrLog_Verbose())
+        CtrLog_Write(CTR_LOG_INPUT, "bottom screen: tap %02x (mode %u screen %u)", id, mode, sShown.screen);
     if (mode >= MODE_BATTLE_INFO)
     {
         /* The controller waiting for it takes it on its next frame. */
@@ -6898,6 +6902,9 @@ static u8 ProcessTouch(u8 mode)
  * to go somewhere else.
  */
 static bool8 NativeBackToDock(void);
+static bool8 NativeListAtEnd(void);
+static bool8 NativeListAtStart(void);
+static u8 HeaderFocus(void);
 
 uint16_t CtrBottom_FilterKeys(uint16_t held)
 {
@@ -6915,11 +6922,20 @@ uint16_t CtrBottom_FilterKeys(uint16_t held)
         return held;
     }
     if (sFocus == FOCUS_NONE && sInside == INSIDE_NONE && !sSwallow && !sMapFly
-        && CtrVideo_SingleScreen() && (held & B_BUTTON) && NativeBackToDock())
+        && CtrVideo_SingleScreen()
+        && (((held & B_BUTTON) && NativeBackToDock())
+            || ((held & DPAD_DOWN) && NativeListAtEnd())
+            || ((held & DPAD_UP) && NativeListAtStart())))
     {
-        sFocus = sShown.screen < SCR_COUNT ? sShown.screen : SCR_BAG;
+        u8 header = HeaderFocus();
+
+        if ((held & DPAD_UP) && header == FOCUS_NONE)
+            return held;
+        sFocus = (held & DPAD_UP) ? header : sShown.screen < SCR_COUNT ? sShown.screen : SCR_BAG;
         sSwallow = TRUE;
-        sNativeBFocus = TRUE;
+        sNativeBFocus = (held & B_BUTTON) != 0;
+        sNativeDownFocus = (held & DPAD_DOWN) != 0;
+        sNativeUpFocus = (held & DPAD_UP) != 0;
         sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
         return 0;
@@ -6947,6 +6963,36 @@ static bool8 NativeBackToDock(void)
     case NATIVE_DEX:
     case NATIVE_SUMMARY:
         return TRUE;
+    }
+    return FALSE;
+}
+
+/* DOWN on the last row of a native list leaves for the dock, where the
+ * categories are. */
+static bool8 NativeListAtEnd(void)
+{
+    if (!sShown.native || gMain.inBattle || sShown.screen >= SCR_COUNT)
+        return FALSE;
+    switch (sShown.native)
+    {
+    case NATIVE_BAG:
+        return sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST
+            && sShown.bv.cursor + 1 >= sShown.bv.numRows
+            && sShown.bv.scroll + sShown.bv.numRows >= sShown.bv.total;
+    }
+    return FALSE;
+}
+
+/* UP on the first row of a native list goes to the header's Y/RUN. */
+static bool8 NativeListAtStart(void)
+{
+    if (!sShown.native || gMain.inBattle || sShown.screen >= SCR_COUNT)
+        return FALSE;
+    switch (sShown.native)
+    {
+    case NATIVE_BAG:
+        return sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST
+            && sShown.bv.scroll == 0 && sShown.bv.cursor == 0;
     }
     return FALSE;
 }
@@ -7195,6 +7241,16 @@ static void ProcessKeys(u8 mode)
         sNativeBFocus = FALSE;
         down &= ~B_BUTTON;
     }
+    if (sNativeDownFocus)
+    {
+        sNativeDownFocus = FALSE;
+        down &= ~DPAD_DOWN;
+    }
+    if (sNativeUpFocus)
+    {
+        sNativeUpFocus = FALSE;
+        down &= ~DPAD_UP;
+    }
     /* Without a second screen START is X: it opens the bottom screen's
      * window with the buttons in it (CtrBottom_PanelShown), and closes it. */
     bool8 x = (in->physicalDown & CTR_KEY_X) != 0
@@ -7306,8 +7362,30 @@ static void ProcessKeys(u8 mode)
         MoveFocus(&sFocus, ColumnStep(sFocus, -1));
     else if (down & DPAD_RIGHT)
         MoveFocus(&sFocus, ColumnStep(sFocus, 1));
-    else if ((down & DPAD_UP) && sFocus < SCR_COUNT && HeaderFocus() != FOCUS_NONE)
-        MoveFocus(&sFocus, HeaderFocus());
+    else if ((down & DPAD_UP) && sFocus < SCR_COUNT)
+    {
+        /* The category is on show: UP enters it at its last item. */
+        if (sFocus == SCR_OPTION && sScreen == SCR_OPTION)
+        {
+            sInside = INSIDE_OPTIONS;
+            sFocus = FOCUS_NONE;
+            sOptLevel = 0;
+            sOptFocus = (u8)OptionLast();
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
+        else if (HeaderFocus() != FOCUS_NONE)
+            MoveFocus(&sFocus, HeaderFocus());
+    }
+    else if ((down & DPAD_UP) && sFocus >= SCR_COUNT && sScreen == SCR_OPTION)
+    {
+        /* From the header, UP reaches the OPTIONS groups. */
+        sInside = INSIDE_OPTIONS;
+        sFocus = FOCUS_NONE;
+        sOptLevel = 1;
+        sForceRedraw = TRUE;
+        PlaySE(SE_SELECT);
+    }
     else if ((down & DPAD_DOWN) && sFocus >= SCR_COUNT)
         MoveFocus(&sFocus, sShown.screen < SCR_COUNT && ColumnItemAvailable(sShown.screen) ? sShown.screen : SCR_MAP);
     else if (down & A_BUTTON)
@@ -8034,7 +8112,7 @@ void CtrBottom_Frame(void)
         static float peak;
         float ms;
 
-        if (sState.mode != sShown.mode)
+        if (sState.mode != sShown.mode && CtrLog_Verbose())
             CtrLog_Write(CTR_LOG_VIDEO, "bottom screen: mode %u", sState.mode);
         sShown = sState;
         sForceRedraw = FALSE;
@@ -8072,10 +8150,11 @@ void CtrBottom_Frame(void)
         if (ms > peak + 0.25f)
         {
             peak = ms;
-            CtrLog_Write(CTR_LOG_VIDEO, "bottom screen: redraw peak %.2f ms (mode %u screen %u) "
-                         "plates made=%lu in %.2f ms evicted=%lu", ms, sShown.mode, sShown.screen,
-                         (unsigned long)(sPlatesMade - platesAt), CtrPlatform_TickMs(sPlateTicks - plateTicksAt),
-                         (unsigned long)(sPlatesEvicted - evictedAt));
+            if (CtrLog_Verbose())
+                CtrLog_Write(CTR_LOG_VIDEO, "bottom screen: redraw peak %.2f ms (mode %u screen %u) "
+                             "plates made=%lu in %.2f ms evicted=%lu", ms, sShown.mode, sShown.screen,
+                             (unsigned long)(sPlatesMade - platesAt), CtrPlatform_TickMs(sPlateTicks - plateTicksAt),
+                             (unsigned long)(sPlatesEvicted - evictedAt));
         }
         BottomProfile(frames, mode, ticks, 2);
         return;

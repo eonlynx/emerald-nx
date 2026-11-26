@@ -69,7 +69,7 @@ void CtrInput_Scan(void)
             sample.touchX = (uint16_t)px;
             sample.touchY = (uint16_t)py;
         }
-        if (!sDbgTouch)
+        if (!sDbgTouch && CtrLog_Verbose())
             CtrLog_Write(CTR_LOG_VIDEO, "TOUCHDBG raw %.0f,%.0f in %dx%d view %d,%d %dx%d -> %.1f,%.1f", host.touchX, host.touchY,
                          host.touchW, host.touchH, vx, vy, vw, vh, px, py);
         sDbgTouch = true;
