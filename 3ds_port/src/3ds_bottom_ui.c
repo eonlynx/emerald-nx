@@ -7679,6 +7679,18 @@ static bool8 PanelKey(const CtrInput *in)
     return CtrVideo_SingleScreen() && (in->physicalDown & CTR_KEY_START) != 0;
 }
 
+/* X/START closes the whole panel.  A game screen open in it - the bag, the
+ * party, the Dex, the PokeNav, the classic card - has to close too: only
+ * dropping the dock focus kept its window up, and the next X put the focus
+ * back on the category. */
+static bool8 CloseGameScreen(u8 mode)
+{
+    if (mode == MODE_FIELD || sShown.screen >= SCR_COUNT || !IsGameScreenItem(sShown.screen))
+        return FALSE;
+    Activate(HIT_COLUMN + sShown.screen, mode);
+    return TRUE;
+}
+
 static void ProcessKeys(u8 mode)
 {
     const CtrInput *in = CtrInput_Get();
@@ -7762,6 +7774,12 @@ static void ProcessKeys(u8 mode)
          * that need an idle field still wait for one when chosen. */
         if (!x || (mode == MODE_FIELD && gMain.callback2 != CB2_Overworld))
             return;
+        if (CloseGameScreen(mode))
+        {
+            LeaveFocus();
+            PlaySE(SE_SELECT);
+            return;
+        }
         if (mode == MODE_FIELD && sScreen == SCR_OPTION)
         {
             sInside = INSIDE_OPTIONS;
@@ -7812,6 +7830,8 @@ static void ProcessKeys(u8 mode)
         sFocus = sFocus >= SCR_COUNT && HeaderFocus() != FOCUS_NONE ? HeaderFocus() : SCR_MAP;
     if (x || (down & B_BUTTON))
     {
+        if (x)
+            CloseGameScreen(mode);
         if (!x && NativeBackToDock())
         {
             /* The next B is the game's: close the screen, not the panel.
