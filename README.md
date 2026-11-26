@@ -173,13 +173,18 @@ containing them unless you have the rights. See
 | D-pad / left stick | Move |
 | L / R | GBA L / R |
 | ZL / ZR | Hold either for the MAX SPEED; release returns to 1x. Both together lock the MAX SPEED, or 1x again |
+| Left stick click | SHOW FPS on or off; a notice above the counter says SHOW FPS ENABLED/DISABLED for a few seconds |
+| Right stick click | DAY / NIGHT between AUTO and OFF; its notice says DAY / NIGHT ENABLED/DISABLED |
 | Plus | Start |
 | Minus | Select (the registered item; in a battle's action menu, the quick ball) |
 | X | Open the bottom-screen panel, also during conversations; in battle, show the bottom battle screen (again to close, or B from its main menu) |
 | Touch screen (handheld) | The bottom-screen panel |
 
-HOME is handled by the system; it is not mapped as a game button. The Switch
-lifecycle pauses the audio feeder while the HOME menu or sleep owns the screen.
+DAY / NIGHT starts in AUTO on Switch. In the bottom panel, **UP** enters the
+category on show at its last item, and **DOWN** from that last item returns to
+the category; the NUZLOCKE tracker also takes the D-pad and A. HOME is handled
+by the system; it is not mapped as a game button. The Switch lifecycle pauses
+the audio feeder while the HOME menu or sleep owns the screen.
 
 ## Building from source
 

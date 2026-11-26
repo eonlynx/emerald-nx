@@ -138,6 +138,8 @@ static uint32_t ButtonForKey(int code)
     case 103: return HOST_BTN_R;         /* BUTTON_R1 */
     case 104: return HOST_BTN_ZL;        /* BUTTON_L2 */
     case 105: return HOST_BTN_ZR;        /* BUTTON_R2 */
+    case 106: return HOST_BTN_LSTICK;    /* BUTTON_THUMBL */
+    case 107: return HOST_BTN_RSTICK;    /* BUTTON_THUMBR */
     case 108: return HOST_BTN_START;     /* BUTTON_START */
     case 109: return HOST_BTN_SELECT;    /* BUTTON_SELECT */
     case 82: return HOST_BTN_START;      /* MENU */

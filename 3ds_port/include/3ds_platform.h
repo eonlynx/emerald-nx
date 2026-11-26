@@ -145,6 +145,12 @@ void CtrSettings_SetBattleMenu(int mode);
 /* The FPS counter on the top screen, off by default. */
 bool CtrSettings_ShowFps(void);
 void CtrSettings_SetShowFps(bool on);
+/* DAY / NIGHT starts in AUTO on Switch; the 3DS and Android keep OFF. */
+#if defined(__SWITCH__) || defined(PLATFORM_SWITCH)
+#define CTR_DAYNIGHT_DEFAULT 1
+#else
+#define CTR_DAYNIGHT_DEFAULT 0
+#endif
 /* Running without holding B, B then walking (the bottom screen's RUN), off by default. */
 bool CtrSettings_RunAlways(void);
 void CtrSettings_SetRunAlways(bool on);

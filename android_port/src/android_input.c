@@ -47,6 +47,29 @@ void CtrInput_Scan(void)
         if (event && CtrPlatform_FrameCount() > 0)
             CtrGame_SpeedSound(event);
     }
+    /* The stick buttons: L3 toggles SHOW FPS, R3 toggles DAY / NIGHT between
+     * AUTO and OFF.  Both answer with the ZL/ZR selection sound. */
+    if (!CtrScenario_Active())
+    {
+        bool changed = false;
+
+        if (down & HOST_BTN_LSTICK)
+        {
+            bool on = !CtrSettings_ShowFps();
+            CtrSettings_SetShowFps(on);
+            AndroidVideo_ShowFpsNotice(on);
+            changed = true;
+        }
+        if (down & HOST_BTN_RSTICK)
+        {
+            bool on = CtrSettings_GetInt("day_night", CTR_DAYNIGHT_DEFAULT) != 1;
+            CtrSettings_SetInt("day_night", on ? 1 : 0);
+            AndroidVideo_ShowDayNightNotice(on);
+            changed = true;
+        }
+        if (changed && CtrPlatform_FrameCount() > 0)
+            CtrGame_SpeedSound(1);
+    }
     for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
         if (host.buttons & keys[i])
             sample.buttons |= 1u << i;

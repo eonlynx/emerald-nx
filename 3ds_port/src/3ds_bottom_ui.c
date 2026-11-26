@@ -2326,7 +2326,7 @@ typedef struct
     /* NUZLOCKE: the area and its status (-1 none), the chosen slot, the
      * fallen ones (a bit a slot), its texts. */
     s8 nuzStatus;
-    u8 nuzSlot, nuzFallen;
+    u8 nuzSlot, nuzFallen, nuzFocus;
     u8 nuzArea[NUZ_TEXT], nuzLink[NUZ_TEXT], nuzFallenText[NUZ_TEXT], nuzFainted[NUZ_TEXT], nuzCap[NUZ_TEXT],
        nuzTotals[NUZ_TEXT];
     /* The header's Y and RUN: the registered item; bit 0 running is the
@@ -2433,11 +2433,13 @@ static u16 ExtraShownValue(const CtrExtra *extra)
 /* The keyboard focus (X) on the dock and the header, and where it is inside
  * a screen. */
 #define FOCUS_NONE 0xFF
-enum { INSIDE_NONE, INSIDE_OPTIONS, INSIDE_SAVE, INSIDE_MAP, INSIDE_CARD };
+enum { INSIDE_NONE, INSIDE_OPTIONS, INSIDE_SAVE, INSIDE_MAP, INSIDE_CARD, INSIDE_NUZLOCKE };
 /* Where OPTIONS' rows go on DOWN past the last one: back to the dock's
  * category, or to the group/category tabs the rows were entered from. */
 enum { OPT_BACK_DOCK, OPT_BACK_GROUP, OPT_BACK_CATEGORY };
 static u8 sFocus = FOCUS_NONE, sInside, sOptFocus, sOptLevel, sOptBack;
+/* The tracker's focused control (a HIT_NUZ_* id). */
+static u8 sNuzFocus = 0xFF;
 static u8 sSaveChoice;
 /* Leaving the focus, the buttons stay the bottom screen's until let go:
  * the B or A that left it must not reach the game. */
@@ -3292,6 +3294,7 @@ static void SnapshotNuzlocke(ViewState *s)
     SnapshotParty(s);
     s->nuzStatus = CtrNuzlockeUi_AreaStatus();
     s->nuzSlot = slot < 0 ? 0xFF : slot;
+    s->nuzFocus = sInside == INSIDE_NUZLOCKE ? sNuzFocus : 0xFF;
     for (int i = 0; i < PARTY_SIZE; ++i)
         if (CtrNuzlockeUi_SlotFallen(i))
             s->nuzFallen |= 1 << i;
@@ -3552,7 +3555,8 @@ static void SnapshotClock(ViewState *s)
 {
     unsigned seconds = 0, rate = 1;
 
-    s->clockShown = CtrSettings_GetInt("day_night", 0) == 1 || CtrSettings_GetInt("show_clock", 0) == 1;
+    s->clockShown = CtrSettings_GetInt("day_night", CTR_DAYNIGHT_DEFAULT) == 1
+                 || CtrSettings_GetInt("show_clock", 0) == 1;
     s->clockValid = CtrDayNight_Time(&seconds, &rate);
     if (!s->clockValid)
         s->clockValid = CtrGame_LocalTimeSeconds(&seconds);
@@ -3814,6 +3818,7 @@ static bool8 Prefetch(const ViewState *s)
 }
 
 static u8 HeaderFocus(void);
+static void FocusBox(int x, int y, int w, int h);
 
 #include "3ds_bottom_shell.inc"
 #include "3ds_bottom_field.inc"
@@ -6907,6 +6912,7 @@ static u8 ProcessTouch(u8 mode)
 static bool8 NativeBackToDock(void);
 static bool8 NativeListAtEnd(void);
 static bool8 NativeListAtStart(void);
+static u8 PokenavEnds(void);
 static u8 HeaderFocus(void);
 
 uint16_t CtrBottom_FilterKeys(uint16_t held)
@@ -6927,8 +6933,8 @@ uint16_t CtrBottom_FilterKeys(uint16_t held)
     if (sFocus == FOCUS_NONE && sInside == INSIDE_NONE && !sSwallow && !sMapFly
         && CtrVideo_SingleScreen()
         && (((held & B_BUTTON) && NativeBackToDock())
-            || ((held & DPAD_DOWN) && NativeListAtEnd())
-            || ((held & DPAD_UP) && NativeListAtStart())))
+            || ((held & DPAD_DOWN) && (NativeListAtEnd() || PokenavEnds() == 2))
+            || ((held & DPAD_UP) && (NativeListAtStart() || PokenavEnds() == 1))))
     {
         u8 header = HeaderFocus();
 
@@ -6982,6 +6988,13 @@ static bool8 NativeListAtEnd(void)
         return sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST
             && sShown.bv.cursor + 1 >= sShown.bv.numRows
             && sShown.bv.scroll + sShown.bv.numRows >= sShown.bv.total;
+    case NATIVE_DEX:
+        return sShown.dx.state == CTR_DEX_VIEW_LIST && sShown.dx.count > 0
+            && sShown.dx.selected + 1 >= sShown.dx.count;
+    case NATIVE_PARTY:
+        /* PARTY_SIZE + 1 is the party menu's CANCEL, its last entry. */
+        return sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
+            && sShown.pv.cursor >= PARTY_SIZE + 1;
     }
     return FALSE;
 }
@@ -6994,6 +7007,258 @@ static bool8 BagListEnterable(void)
         && sShown.bv.total > 0;
 }
 
+/* The tracker's controls, row by row: its three status buttons, the party
+ * slots with a Pokémon, then FALLEN MARK and MARK FAINTED.  Only what a tap
+ * could use is focusable. */
+static int NuzlockeRow(u8 row, u8 *ids, int max)
+{
+    int n = 0;
+
+    switch (row)
+    {
+    case 0:
+        if (sShown.nuzStatus >= 0)
+            for (int i = 0; i < 3 && n < max; ++i)
+                ids[n++] = HIT_NUZ_STATUS + i;
+        break;
+    case 1:
+        for (int i = 0; i < PARTY_SIZE && n < max; ++i)
+            if (sShown.party[i].species)
+                ids[n++] = HIT_NUZ_SLOT + i;
+        break;
+    case 2:
+        if (n < max)
+            ids[n++] = HIT_NUZ_FALLEN;
+        if (n < max)
+            ids[n++] = HIT_NUZ_FAINTED;
+        break;
+    }
+    return n;
+}
+
+/* The focused control's row and place in it, or -1 when it is gone. */
+static int NuzlockeFocusRow(int *col)
+{
+    u8 ids[PARTY_SIZE];
+
+    for (int row = 0; row < 3; ++row)
+    {
+        int n = NuzlockeRow(row, ids, PARTY_SIZE);
+
+        for (int i = 0; i < n; ++i)
+            if (ids[i] == sNuzFocus)
+            {
+                *col = i;
+                return row;
+            }
+    }
+    return -1;
+}
+
+/* The last control on the tracker: MARK FAINTED. */
+static void NuzlockeFocusLast(void)
+{
+    u8 ids[PARTY_SIZE];
+    int n;
+
+    for (int row = 2; row >= 0; --row)
+        if ((n = NuzlockeRow(row, ids, PARTY_SIZE)) > 0)
+        {
+            sNuzFocus = ids[n - 1];
+            return;
+        }
+    sNuzFocus = HIT_NUZ_FAINTED;
+}
+
+/* UP and DOWN between the tracker's rows: the first row goes to the header,
+ * the last row back to the dock. */
+static void NuzlockeMove(int dir)
+{
+    u8 ids[PARTY_SIZE];
+    int col = 0, row = NuzlockeFocusRow(&col), n;
+
+    if (row < 0)
+    {
+        NuzlockeFocusLast();
+        sForceRedraw = TRUE;
+        return;
+    }
+    for (int r = row + dir; r >= 0 && r < 3; r += dir)
+    {
+        n = NuzlockeRow(r, ids, PARTY_SIZE);
+        if (n <= 0)
+            continue;
+        sNuzFocus = ids[col < n ? col : n - 1];
+        PlaySE(SE_SELECT);
+        sForceRedraw = TRUE;
+        return;
+    }
+    if (dir < 0)
+    {
+        /* Above the first row: the header's Y/RUN. */
+        u8 header = HeaderFocus();
+
+        if (header != FOCUS_NONE)
+        {
+            sInside = INSIDE_NONE;
+            sFocus = header;
+        }
+    }
+    else
+    {
+        /* Below the last row: the dock's NUZLOCKE button. */
+        sInside = INSIDE_NONE;
+        sFocus = SCR_NUZLOCKE;
+    }
+    sForceRedraw = TRUE;
+    PlaySE(SE_SELECT);
+}
+
+/* LEFT and RIGHT within a row, round. */
+static void NuzlockeSide(int dir)
+{
+    u8 ids[PARTY_SIZE];
+    int col = 0, row = NuzlockeFocusRow(&col), n;
+
+    if (row < 0)
+    {
+        NuzlockeFocusLast();
+        sForceRedraw = TRUE;
+        return;
+    }
+    n = NuzlockeRow(row, ids, PARTY_SIZE);
+    if (n <= 1)
+        return;
+    col = (col + dir + n) % n;
+    sNuzFocus = ids[col];
+    PlaySE(SE_SELECT);
+    sForceRedraw = TRUE;
+}
+
+static void NuzlockeKeys(u16 down)
+{
+    if (down & B_BUTTON)
+    {
+        sInside = INSIDE_NONE;
+        sFocus = SCR_NUZLOCKE;
+        sForceRedraw = TRUE;
+        PlaySE(SE_SELECT);
+    }
+    else if (down & DPAD_UP)
+        NuzlockeMove(-1);
+    else if (down & DPAD_DOWN)
+        NuzlockeMove(1);
+    else if (down & DPAD_LEFT)
+        NuzlockeSide(-1);
+    else if (down & DPAD_RIGHT)
+        NuzlockeSide(1);
+    else if (down & A_BUTTON)
+    {
+        int col;
+
+        if (NuzlockeFocusRow(&col) >= 0)
+        {
+            NuzlockeTap(sNuzFocus);
+            sForceRedraw = TRUE;
+        }
+    }
+}
+
+/* The PokéNav screens with a menu of options: the main menu and the
+ * Condition search's. */
+static bool8 PokenavMenuScreen(u32 screen)
+{
+    switch (screen)
+    {
+    case POKENAV_MAIN_MENU:
+    case POKENAV_MAIN_MENU_CURSOR_ON_MAP:
+    case POKENAV_CONDITION_MENU:
+    case POKENAV_CONDITION_SEARCH_MENU:
+    case POKENAV_MAIN_MENU_CURSOR_ON_MATCH_CALL:
+    case POKENAV_MAIN_MENU_CURSOR_ON_RIBBONS:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/* The PokéNav list screens: their item there is a row of the game's list. */
+static bool8 PokenavListScreen(u32 screen)
+{
+    return screen == POKENAV_CONDITION_SEARCH_RESULTS || screen == POKENAV_RIBBONS_MON_LIST;
+}
+
+/* Put the PokéNav on its last item: a menu option at once, a list or the
+ * Match Call's options walked to with the presses the touch path uses. */
+static bool8 PokenavSelectLast(void)
+{
+    bool8 ready;
+    u32 screen = CtrPokenav_Screen(&ready);
+    int cursor, count;
+    u8 x, y, width;
+    u16 top, selected, shown, total, option, options;
+
+    if (!ready)
+        return FALSE;
+    if (PokenavMenuScreen(screen))
+    {
+        count = CtrPokenavMenu_Options(&cursor);
+        if (count <= 0)
+            return FALSE;
+        CtrPokenavMenu_Select(count - 1);
+        return TRUE;
+    }
+    if (PokenavListScreen(screen)
+        && CtrPokenavList_View(&x, &y, &width, &top, &selected, &shown, &total) && total > 0)
+    {
+        if (selected + 1 < total)
+            NavStart(NAV_LIST, (s16)(total - 1), 0);
+        return TRUE;
+    }
+    if (screen == POKENAV_MATCH_CALL && CtrPokenavMatchCall_Input(&option, &options) == 1 && options > 0)
+    {
+        if (option + 1 < options)
+            NavStart(NAV_OPTION, (s16)(options - 1), 0);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/* 0 not at an end, 1 at the first item, 2 at the last. */
+static u8 PokenavEnds(void)
+{
+    bool8 ready;
+    u32 screen = CtrPokenav_Screen(&ready);
+    int cursor, count;
+    u8 x, y, width;
+    u16 top, selected, shown, total, option, options;
+
+    if (!ready)
+        return 0;
+    if (PokenavMenuScreen(screen))
+    {
+        count = CtrPokenavMenu_Options(&cursor);
+        if (count <= 0)
+            return 0;
+        if (cursor <= 0)
+            return 1;
+        return cursor + 1 >= count ? 2 : 0;
+    }
+    if (PokenavListScreen(screen)
+        && CtrPokenavList_View(&x, &y, &width, &top, &selected, &shown, &total) && total > 0)
+    {
+        if (selected == 0)
+            return 1;
+        return selected + 1 >= total ? 2 : 0;
+    }
+    if (screen == POKENAV_MATCH_CALL && CtrPokenavMatchCall_Input(&option, &options) == 1 && options > 0)
+    {
+        if (option == 0)
+            return 1;
+        return option + 1 >= options ? 2 : 0;
+    }
+    return 0;
+}
+
 /* UP on the first row of a native list goes to the header's Y/RUN. */
 static bool8 NativeListAtStart(void)
 {
@@ -7004,6 +7269,11 @@ static bool8 NativeListAtStart(void)
     case NATIVE_BAG:
         return sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST
             && sShown.bv.scroll == 0 && sShown.bv.cursor == 0;
+    case NATIVE_DEX:
+        return sShown.dx.state == CTR_DEX_VIEW_LIST && sShown.dx.selected == 0;
+    case NATIVE_PARTY:
+        return sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
+            && sShown.pv.cursor == 0;
     }
     return FALSE;
 }
@@ -7146,6 +7416,29 @@ static void ChooseColumnItem(u8 mode, u8 item)
 
 static void SaveKeys(u8 mode, u16 down)
 {
+    /* NO is the last choice: DOWN from it returns to the dock's SAVE. */
+    if (sSaveStep != SAVE_DONE && (down & DPAD_DOWN) && sSaveChoice == 1)
+    {
+        sInside = INSIDE_NONE;
+        sFocus = SCR_SAVE;
+        sForceRedraw = TRUE;
+        PlaySE(SE_SELECT);
+        return;
+    }
+    /* YES is the first choice: UP from it goes to the header. */
+    if (sSaveStep != SAVE_DONE && (down & DPAD_UP) && sSaveChoice == 0)
+    {
+        u8 header = HeaderFocus();
+
+        if (header != FOCUS_NONE)
+        {
+            sInside = INSIDE_NONE;
+            sFocus = header;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
+    }
     if (sSaveStep != SAVE_DONE && (down & (DPAD_UP | DPAD_LEFT)) && sSaveChoice != 0)
     {
         sSaveChoice = 0;
@@ -7181,11 +7474,25 @@ static void SaveKeys(u8 mode, u16 down)
 static void CardKeys(u8 mode, u16 down)
 {
     (void)mode;
-    if (down & B_BUTTON)
+    if ((down & B_BUTTON) || (down & DPAD_DOWN))
     {
         sInside = INSIDE_NONE;
         sFocus = SCR_CARD;
+        sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
+    }
+    else if (down & DPAD_UP)
+    {
+        /* The card is the section's only control: UP reaches the header. */
+        u8 header = HeaderFocus();
+
+        if (header != FOCUS_NONE)
+        {
+            sInside = INSIDE_NONE;
+            sFocus = header;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
     }
     else if (down & A_BUTTON)
     {
@@ -7220,6 +7527,31 @@ static void MapKeys(u8 mode, u16 down)
     {
         sInside = INSIDE_NONE;
         sFocus = SCR_MAP;
+        PlaySE(SE_SELECT);
+        return;
+    }
+    /* The map itself is the first of the two: UP from it reaches the
+     * header. */
+    if (sMapFocus == 0 && (down & DPAD_UP))
+    {
+        u8 header = HeaderFocus();
+
+        if (header != FOCUS_NONE)
+        {
+            sInside = INSIDE_NONE;
+            sFocus = header;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
+    }
+    /* The zoom lens is the last of the two: DOWN from it returns to the
+     * dock's MAP; UP still switches back to the map itself. */
+    if (sMapFocus == 1 && (down & DPAD_DOWN))
+    {
+        sInside = INSIDE_NONE;
+        sFocus = SCR_MAP;
+        sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
         return;
     }
@@ -7288,7 +7620,8 @@ static void ProcessKeys(u8 mode)
     if ((sInside == INSIDE_OPTIONS && sScreen != SCR_OPTION)
      || (sInside == INSIDE_SAVE && sScreen != SCR_SAVE)
      || (sInside == INSIDE_MAP && sScreen != SCR_MAP)
-     || (sInside == INSIDE_CARD && sScreen != SCR_CARD))
+     || (sInside == INSIDE_CARD && sScreen != SCR_CARD)
+     || (sInside == INSIDE_NUZLOCKE && sScreen != SCR_NUZLOCKE))
     {
         sInside = INSIDE_NONE;
         sFocus = sScreen;
@@ -7307,8 +7640,10 @@ static void ProcessKeys(u8 mode)
             SaveKeys(mode, down);
         else if (sInside == INSIDE_MAP)
             MapKeys(mode, down);
-        else
+        else if (sInside == INSIDE_CARD)
             CardKeys(mode, down);
+        else
+            NuzlockeKeys(down);
         return;
     }
     if (sFocus == FOCUS_NONE)
@@ -7393,6 +7728,59 @@ static void ProcessKeys(u8 mode)
             /* The bag takes the buttons again, on its last row. */
             CtrBag_SelectIndex(sShown.bv.total - 1);
             LeaveFocus();
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_POKEDEX && sShown.screen == SCR_POKEDEX)
+        {
+            /* The list goes to its last species; an entry or a menu keeps
+             * where it is. */
+            CtrPokedex_SelectLast();
+            LeaveFocus();
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_POKEMON && sShown.screen == SCR_POKEMON)
+        {
+            /* The party menu goes to CANCEL, its last entry; a summary keeps
+             * its page. */
+            if (sShown.native == NATIVE_PARTY)
+                CtrParty_SelectLast();
+            LeaveFocus();
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_POKENAV && sShown.screen == SCR_POKENAV)
+        {
+            PokenavSelectLast();
+            LeaveFocus();
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_MAP && sShown.screen == SCR_MAP)
+        {
+            /* The zoom lens is the map's last control. */
+            sInside = INSIDE_MAP;
+            sMapFocus = 1;
+            sMapMoving = FALSE;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_CARD && sShown.screen == SCR_CARD)
+        {
+            sInside = INSIDE_CARD;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_SAVE && sShown.screen == SCR_SAVE)
+        {
+            /* NO is the save question's last choice. */
+            sInside = INSIDE_SAVE;
+            sSaveChoice = 1;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_NUZLOCKE && sShown.screen == SCR_NUZLOCKE)
+        {
+            sInside = INSIDE_NUZLOCKE;
+            NuzlockeFocusLast();
+            sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
         }
         else if (HeaderFocus() != FOCUS_NONE)
@@ -7703,6 +8091,7 @@ void CtrBottom_SoftReset(void)
     sOptLevel = 0;
     sOptFocus = 0;
     sOptBack = OPT_BACK_DOCK;
+    sNuzFocus = 0xFF;
     sSaveChoice = 0;
     sCardBack = FALSE;
     sPickMapsec = MAPSEC_NONE;

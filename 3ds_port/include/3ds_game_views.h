@@ -54,6 +54,9 @@ struct CtrPartyView
 bool8 CtrParty_GetView(struct CtrPartyView *view);
 /* A box tapped, as the game's own tap on it; PARTY_SIZE + 1 is CANCEL. */
 void CtrParty_TapSlot(s8 slot);
+/* The field party menu's cursor put on CANCEL, its last entry, for the dock's
+ * UP; the game takes the buttons again at once. */
+void CtrParty_SelectLast(void);
 const u8 *CtrParty_DescText(u8 desc);
 bool8 CtrParty_Building(void);
 /* The party menu is in the bottom screen's window: the field's, or a battle's own. */
@@ -303,6 +306,8 @@ enum
 };
 
 bool8 CtrPokedex_GetView(struct CtrDexView *view);
+/* The list's cursor put on its last species, for the dock's UP. */
+void CtrPokedex_SelectLast(void);
 void CtrPokedex_NativeTap(u8 kind, u8 index);
 /* A touch on the list, rows256 rows (1/256s) from the chosen one's middle,
  * as the list's own touch at that row (a tap, a drag scrolling it). */

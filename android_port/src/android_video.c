@@ -1945,6 +1945,23 @@ static void PlaceTop(int w, int h, int *x, int *y, int *vw, int *vh)
 #ifndef CTR_SHOW_FPS
 #define CTR_SHOW_FPS 1
 #endif
+/* How long the stick toggles' notices stay over the FPS line. */
+#define SETTING_NOTICE_MS 3000u
+static uint64_t sFpsNoticeUntil, sDayNightNoticeUntil;
+static bool sFpsNoticeOn, sDayNightNoticeOn;
+
+void AndroidVideo_ShowFpsNotice(bool on)
+{
+    sFpsNoticeOn = on;
+    sFpsNoticeUntil = CtrPlatform_Milliseconds() + SETTING_NOTICE_MS;
+}
+
+void AndroidVideo_ShowDayNightNotice(bool on)
+{
+    sDayNightNoticeOn = on;
+    sDayNightNoticeUntil = CtrPlatform_Milliseconds() + SETTING_NOTICE_MS;
+}
+
 #if CTR_SHOW_FPS
 /*
  * The FPS counter (SHOW_FPS=1), shown when the options turn it on
@@ -1972,6 +1989,14 @@ static const char *const sFpsGlyphs[] = {
     "101111101101101", /* N */
     "010101101101010", /* O */
     "110101110101101", /* R */
+    "110101110101110", /* B */
+    "011100101101011", /* G */
+    "101101111101101", /* H */
+    "111010010010111", /* I */
+    "011100010001110", /* S */
+    "111010010010010", /* T */
+    "101101101111101", /* W */
+    "101101010010010", /* Y */
 };
 static float sOverlayFps, sOverlayGameFps;
 /* Defined with the quads, further down. */
@@ -2024,6 +2049,14 @@ static int OverlayGlyph(char c)
     case 'N': return 22;
     case 'O': return 23;
     case 'R': return 24;
+    case 'B': return 25;
+    case 'G': return 26;
+    case 'H': return 27;
+    case 'I': return 28;
+    case 'S': return 29;
+    case 'T': return 30;
+    case 'W': return 31;
+    case 'Y': return 32;
     }
     return -1;
 }
@@ -2063,19 +2096,34 @@ static void DrawOverlayLine(int w, int h, float x, float y, float px, const char
     sQuadH = savedH;
 }
 
+/* The stick toggles' notices, in order above the FPS line.  Returns the
+ * next free line. */
+static int DrawSettingNotices(int w, int h, float x, float y, float px, int line)
+{
+    uint64_t now = CtrPlatform_Milliseconds();
+
+    if (now < sDayNightNoticeUntil)
+        DrawOverlayLine(w, h, x, y, px,
+                        sDayNightNoticeOn ? "DAY / NIGHT ENABLED" : "DAY / NIGHT DISABLED", line++);
+    if (now < sFpsNoticeUntil)
+        DrawOverlayLine(w, h, x, y, px,
+                        sFpsNoticeOn ? "SHOW FPS ENABLED" : "SHOW FPS DISABLED", line++);
+    return line;
+}
+
 /* On the window (w x h): its top left at (x, y) from the window's top left,
  * one font pixel `px` window pixels. */
-static void DrawFps(int w, int h, float x, float y, float px)
+static void DrawFps(int w, int h, float x, float y, float px, int line)
 {
     unsigned fps = (unsigned)(sOverlayFps + 0.5f), game = (unsigned)(sOverlayGameFps + 0.5f);
     char text[16];
 
     snprintf(text, sizeof(text), "FPS %u/%u", fps > 999 ? 999 : fps, game > 999 ? 999 : game);
-    DrawOverlayLine(w, h, x, y, px, text, 0);
+    DrawOverlayLine(w, h, x, y, px, text, line);
 }
 
 /* The speed under the FPS line, when SHOW SPEED asks for it. */
-static void DrawSpeed(int w, int h, float x, float y, float px)
+static void DrawSpeed(int w, int h, float x, float y, float px, int line)
 {
     char text[24];
     int speed = CtrPlatform_DisplaySpeedHalves(), badge = CtrPlatform_SpeedBadgeKind();
@@ -2085,7 +2133,7 @@ static void DrawSpeed(int w, int h, float x, float y, float px)
     if (show == 0 || (show == 1 && speed <= 2 && badge == 0))
         return;
     snprintf(text, sizeof(text), "%d%sX%s", speed / 2, speed & 1 ? ".5" : "", suffix);
-    DrawOverlayLine(w, h, x, y, px, text, CtrSettings_ShowFps() ? 1 : 0);
+    DrawOverlayLine(w, h, x, y, px, text, line);
 }
 #endif
 
@@ -2196,9 +2244,12 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
 #if CTR_SHOW_FPS
     if (screen == HOST_SCREEN_TOP)
     {
+        float px = (float)vh / (float)ph;
+        int line = DrawSettingNotices(w, h, (float)x, (float)y, px, 0);
+
         if (CtrSettings_ShowFps())
-            DrawFps(w, h, (float)x, (float)y, (float)vh / (float)ph);
-        DrawSpeed(w, h, (float)x, (float)y, (float)vh / (float)ph);
+            DrawFps(w, h, (float)x, (float)y, px, line++);
+        DrawSpeed(w, h, (float)x, (float)y, px, line);
     }
 #endif
     {

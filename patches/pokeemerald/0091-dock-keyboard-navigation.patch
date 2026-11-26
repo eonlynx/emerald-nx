@@ -1,0 +1,59 @@
+Dock keyboard navigation: select the last list item in the party menu and the Pokedex.
+Generated from build/upstream after the earlier port patches.
+
+--- a/src/party_menu.c
++++ b/src/party_menu.c
+@@ -1618,6 +1618,25 @@
+                     GetWindowAttribute(windowId, WINDOW_TILEMAP_TOP) * 8 + GetWindowAttribute(windowId, WINDOW_HEIGHT) * 4);
+ }
+ 
++// The dock's UP: the field party menu's cursor on CANCEL, its last entry.
++void CtrParty_SelectLast(void)
++{
++    s8 *slotPtr;
++    s8 old, last = PARTY_SIZE + 1;
++
++    if (sPartyMenuInternal == NULL || gPartyMenu.menuType != PARTY_MENU_TYPE_FIELD
++     || sPartyMenuInternal->chooseHalf)
++        return;
++    slotPtr = GetCurrentPartySlotPtr();
++    old = *slotPtr;
++    if (old == last)
++        return;
++    *slotPtr = last;
++    AnimatePartySlot(old, 0);
++    AnimatePartySlot(last, 1);
++    PlaySE(SE_SELECT);
++}
++
+ // The field's party menu being built (its fade in still to come): the
+ // bottom screen draws it from the start.
+ bool8 CtrParty_Building(void)
+--- a/src/pokedex.c
++++ b/src/pokedex.c
+@@ -6863,6 +6863,25 @@
+     return CTR_DEX_NONE;
+ }
+ 
++// The dock's UP: the list's cursor on its last species, as the START menu's
++// LIST BOTTOM does it, without opening the menu.
++void CtrPokedex_SelectLast(void)
++{
++    if (!CtrPokedex_IsOpen() || sPokedexView == NULL)
++        return;
++    if (sPokedexView->currentPage != PAGE_MAIN && sPokedexView->currentPage != PAGE_SEARCH_RESULTS)
++        return;
++    if (sPokedexView->menuIsOpen || sPokedexView->pokemonListCount == 0)
++        return;
++    if (sPokedexView->selectedPokemon == sPokedexView->pokemonListCount - 1)
++        return;
++    sPokedexView->selectedPokemon = sPokedexView->pokemonListCount - 1;
++    sPokedexView->pokeBallRotation = sPokedexView->pokemonListCount * 16 + POKEBALL_ROTATION_BOTTOM;
++    ClearMonSprites();
++    CreateMonSpritesAtPos(sPokedexView->selectedPokemon, 0xE);
++    PlaySE(SE_DEX_SCROLL);
++}
++
+ // Where the Pokédex is, for the bottom screen to draw it itself. FALSE while
+ // there is nothing to read (a page coming in or going out): the bottom
+ // screen keeps what it showed.

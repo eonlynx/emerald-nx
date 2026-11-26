@@ -1029,6 +1029,8 @@ static void DrawNuzlocke(const ViewState *s)
         TextIn(Ascii(status[i]), bx, by, bw, 17, &sSmall, 'c', live || pressed || !enabled ? STYLE_WHITE : STYLE_INK, 3);
         if (enabled)
             AddHit(bx, y + 22, bw, 17, HIT_NUZ_STATUS + i);
+        if (s->nuzFocus == HIT_NUZ_STATUS + i)
+            FocusBox(bx, y + 22, bw, 17);
     }
     y += 47;
     for (int i = 0; i < PARTY_SIZE; ++i)
@@ -1052,6 +1054,8 @@ static void DrawNuzlocke(const ViewState *s)
         if (fallen)
             DrawSprite(sArtTinyX, 1, 1, bx + sw - 11, y + 25, sArtPal.c);
         AddHit(bx, y, sw, 36, HIT_NUZ_SLOT + i);
+        if (s->nuzFocus == HIT_NUZ_SLOT + i)
+            FocusBox(bx, y, sw, 36);
     }
     y += 39;
     for (int col = 0; col < 2; ++col)
@@ -1067,6 +1071,8 @@ static void DrawNuzlocke(const ViewState *s)
         TextIn(col ? s->nuzFainted : s->nuzFallenText, bx, oy + 14, half, 14, &sSmall, 'c',
                pressed ? STYLE_WHITE : STYLE_GREEN, 4);
         AddHit(bx, y, half, 30, id);
+        if (s->nuzFocus == id)
+            FocusBox(bx, y, half, 30);
     }
     y += 33;
     oy = Plate(x, y, w, AREA_Y + AREA_H - y, sCreamPlate, PLATE_STATE_NORMAL);

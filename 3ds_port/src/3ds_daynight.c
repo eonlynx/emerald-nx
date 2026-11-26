@@ -134,7 +134,7 @@ void CtrDayNight_Resume(void)
 void CtrDayNight_Update(void)
 {
     uint64_t now = CtrPlatform_Milliseconds();
-    bool enabled = CtrSettings_GetInt("day_night", 0) == 1;
+    bool enabled = CtrSettings_GetInt("day_night", CTR_DAYNIGHT_DEFAULT) == 1;
     bool active = enabled || CtrSettings_GetInt("timed_encounters", 0) == 1
                           || CtrSettings_GetInt("show_clock", 0) == 1
                           || sClock.shifted || sClock.berryBonusMs != 0;

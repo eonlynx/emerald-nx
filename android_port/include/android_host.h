@@ -53,6 +53,7 @@ enum
     HOST_BTN_L = 1 << 4, HOST_BTN_R = 1 << 5, HOST_BTN_ZL = 1 << 6, HOST_BTN_ZR = 1 << 7,
     HOST_BTN_START = 1 << 8, HOST_BTN_SELECT = 1 << 9,
     HOST_BTN_UP = 1 << 10, HOST_BTN_DOWN = 1 << 11, HOST_BTN_LEFT = 1 << 12, HOST_BTN_RIGHT = 1 << 13,
+    HOST_BTN_LSTICK = 1 << 14, HOST_BTN_RSTICK = 1 << 15,
 };
 
 void AndroidHost_GetInput(AndroidHostInput *out);
@@ -68,6 +69,9 @@ bool AndroidVideo_PanelShown(void);
 void AndroidVideo_PanelRect(int w, int h, int *x, int *y, int *vw, int *vh);
 void AndroidVideo_BottomViewport(int w, int h, int *x, int *y, int *vw, int *vh);
 void AndroidVideo_WholeTouch(float *x, float *y);
+/* The stick toggles' notices above the FPS line (android_video.c). */
+void AndroidVideo_ShowFpsNotice(bool on);
+void AndroidVideo_ShowDayNightNotice(bool on);
 
 /* The fatal message to show, or NULL (android_log.c). */
 const char *AndroidLog_FatalReason(void);

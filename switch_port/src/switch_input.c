@@ -44,6 +44,8 @@ void AndroidHost_GetInput(AndroidHostInput *out) {
     if (held & HidNpadButton_Down) out->buttons |= HOST_BTN_DOWN;
     if (held & HidNpadButton_Left) out->buttons |= HOST_BTN_LEFT;
     if (held & HidNpadButton_Right) out->buttons |= HOST_BTN_RIGHT;
+    if (held & HidNpadButton_StickL) out->buttons |= HOST_BTN_LSTICK;
+    if (held & HidNpadButton_StickR) out->buttons |= HOST_BTN_RSTICK;
 
     const HidAnalogStickState stick = padGetStickPos(&sPad, 0);
     out->stickX = (float)stick.x / 32768.0f;
