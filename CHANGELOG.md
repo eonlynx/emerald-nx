@@ -20,7 +20,9 @@ in the same tree and keep building.
   The screen quad uses an explicit four-vertex VBO instead of a
   `gl_VertexID`-only empty VAO, which Mesa on NV120 does not rasterize.
   Switch input calls `padConfigureInput` before `padInitializeDefault`, as
-  smbr-nx does.
+  smbr-nx does. Missing first-run settings/save/clock files no longer log as
+  errors, and error paths show the translated `sdmc:/switch/emerald-nx/`
+  path instead of the shared code's 3DS path.
 - Audio: libnx `audout` at 48 kHz through the shared mixer and a
   phase-continuous linear resampler; released buffers are drained directly.
 - Input: native libnx pad and touch. A/B/X/Y follow their printed letters,

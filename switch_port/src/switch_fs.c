@@ -149,7 +149,15 @@ static FILE *Open(const char *base, const char *path, const char *mode) {
     }
     FILE *file = fopen(full, mode);
     if (!file) {
-        CtrLog_Write(CTR_LOG_ERROR, "open %s: errno=%d", full, errno);
+        /* A missing settings/save/clock sidecar is normal on first run.  The
+         * higher-level loader says what it creates; do not report ENOENT as
+         * an error.  The path in the message is the translated SD path, not
+         * the 3DS path the shared code used. */
+        if (errno != ENOENT) {
+            char mapped[768];
+            const char *shown = Translate(full, mapped, sizeof(mapped));
+            CtrLog_Write(CTR_LOG_ERROR, "open %s: errno=%d", shown ? shown : full, errno);
+        }
     }
     return file;
 }
