@@ -33,28 +33,15 @@ void CtrInput_Scan(void)
     AndroidHost_GetInput(&host);
     uint32_t down = host.buttons & ~sLastButtons;
     sLastButtons = host.buttons;
-    /* ZR/ZL change the speed of the scene that is actually playing.
-     * In battle they adjust its independent battle_speed setting; outside
-     * battle they retain the existing overworld SPEED behavior. L/R remain
-     * available through Platform_GetKeyInput's normal battle shortcut. */
-    if (!CtrScenario_Active())
+    /* ZL and ZR are the same hold-to-boost control; together they lock the
+     * MAX SPEED or return to 1x.  The platform owns the state (the pacing
+     * reads it); the sound is the caller's. */
     {
-        bool battle = CtrPlatform_BattleSpeedKeys();
-
-        if (down & HOST_BTN_ZR)
-        {
-            if (battle)
-                CtrPlatform_StepBattleSpeed(1, false);
-            else
-                CtrSettings_StepSpeed(1, false);
-        }
-        if (down & HOST_BTN_ZL)
-        {
-            if (battle)
-                CtrPlatform_StepBattleSpeed(-1, false);
-            else
-                CtrSettings_StepSpeed(-1, false);
-        }
+        int event = CtrScenario_Active() ? 0
+                  : CtrPlatform_SpeedButtons((host.buttons & HOST_BTN_ZL) != 0,
+                                             (host.buttons & HOST_BTN_ZR) != 0);
+        if (event && CtrPlatform_FrameCount() > 0)
+            CtrGame_SpeedSound(event);
     }
     for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
         if (host.buttons & keys[i])

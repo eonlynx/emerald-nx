@@ -19,6 +19,7 @@
 #include "gpu_regs.h"
 #include "cgb_audio.h"
 #include "sound.h"
+#include "constants/songs.h"
 #include "sound_mixer.h"
 #include "m4a.h"
 #include "scanline_effect.h"
@@ -1286,6 +1287,12 @@ static void HoldFieldFade(void)
     /* Counted per black: the bound is not started again until it is over. */
     if (!blank)
         sFadeHeldFrames = 0;
+}
+
+/* ZL/ZR feedback, called from the host's input scan (3ds_platform.h). */
+void CtrGame_SpeedSound(int event)
+{
+    PlaySE(event == 2 ? SE_SUCCESS : SE_SELECT);
 }
 
 void CtrGame_WaitFrame(void)

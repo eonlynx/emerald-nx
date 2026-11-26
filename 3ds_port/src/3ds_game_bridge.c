@@ -4,6 +4,8 @@
 #include "3ds_audio.h"
 #include "3ds_emu_regs.h"
 #include "3ds_bottom.h"
+#include "sound.h"
+#include "constants/songs.h"
 #ifdef CTR_TEST_SWOOP
 #include "main.h"
 #include "overworld.h"
@@ -45,10 +47,27 @@ u16 Platform_GetKeyInput(void)
     const CtrInput *input = CtrInput_Get();
     u16 held = input->held;
 
+#ifdef __SWITCH__
+    /* On the single-screen Switch port Y is always the 3D/2D switch.
+     * SELECT stays the game's own SELECT (the registered item); the battle
+     * action menu's quick ball is SELECT there too. */
+    {
+        static uint64_t sYAt = ~0ull;
+        uint64_t frame = CtrPlatform_FrameCount();
+
+        if ((input->physicalDown & CTR_KEY_Y) && frame != sYAt)
+        {
+            sYAt = frame;
+            CtrSettings_SetVoxel(!CtrSettings_Voxel());
+            PlaySE(SE_SELECT);
+        }
+    }
+#else
     /* Y is the 3DS's own SELECT: the registered item, as the bottom screen's
      * Y button says. */
     if (input->physicalHeld & CTR_KEY_Y)
         held |= SELECT_BUTTON;
+#endif
     /* In the battle scene L slows and R speeds the battle up, and the game
      * sees neither. With the game's L=A button mode L stays A, and R alone
      * goes round the speeds, 4x back to 1x. Not while START and SELECT are

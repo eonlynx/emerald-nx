@@ -38,8 +38,18 @@ static int sPitch = 2, sZoom = 1;
 static const int sBlurs[] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
 static int sBlur = 10;
 /* Battles in front of the voxel world rather than the GBA's scenery
- * (3ds_video.c, RenderBattleWorld): off unless turned on. */
-static bool sVoxelBattle = false;
+ * (3ds_video.c, RenderBattleWorld): 0 OFF, 1 AUTO (follow VOXEL 3D), 2 ON.
+ * AUTO is the default. */
+static int sVoxelBattleMode = 1;
+/* SHOW SPEED: 0 OFF, 1 AUTO (a speed other than 1x, or a lock notice),
+ * 2 ON. */
+static int sShowSpeed = 1;
+/* HOLD SPEED: the index into sHoldSpeeds used while ZL/ZR are held; 0 is
+ * OFF.  The default is 4x. */
+static int sHoldSpeed = 4;
+/* BATTLE MENU: 0 CLASSIC (the GBA menu on the top screen), 1 NEW (the 3DS
+ * battle menu on the bottom screen). */
+static int sBattleMenu = 0;
 /* The FPS counter in the top screen's corner (3ds_video.c): off unless
  * turned on. */
 static bool sShowFps = false;
@@ -51,6 +61,8 @@ static bool sRunAlways = false;
  * speed=1, speed=1.5, speed=2 ... */
 static const int sSpeeds[] = {2, 3, 4, 6, 8};
 static int sSpeed = 0;
+/* The MAX SPEED choices' halves; 0 is OFF. */
+static const int sHoldSpeeds[] = {0, 3, 4, 6, 8};
 
 /*
  * Settings without a variable of their own (the ENHANCEMENTS and CHEATS pages,
@@ -106,7 +118,10 @@ void CtrSettings_Defaults(void)
     sPitch = 2;
     sZoom = 1;
     sBlur = COUNT(sBlurs) - 1;
-    sVoxelBattle = false;
+    sVoxelBattleMode = 1;
+    sShowSpeed = 1;
+    sHoldSpeed = 4;
+    sBattleMenu = 0;
     sShowFps = false;
     sRunAlways = false;
     sSpeed = 0;
@@ -126,8 +141,18 @@ void CtrSettings_ApplyLine(const char *line)
         sZoom = Find(sZooms, COUNT(sZooms), value, sZoom);
     else if (sscanf(line, "voxel_blur=%d", &value) == 1)
         sBlur = Find(sBlurs, COUNT(sBlurs), value == 1 ? 100 : value, sBlur);
-    else if (strncmp(line, "voxel_battle=", 13) == 0)
-        sVoxelBattle = line[13] == '1';
+    else if (sscanf(line, "battle_3d=%d", &value) == 1)
+        sVoxelBattleMode = value >= 0 && value <= 2 ? value : 1;
+    else if (sscanf(line, "voxel_battle=%d", &value) == 1)
+        /* Older settings: 1 was ON, 0 was the old default.  AUTO is the new
+         * default, so an old 0 becomes AUTO; a deliberate ON stays ON. */
+        sVoxelBattleMode = value ? 2 : 1;
+    else if (sscanf(line, "show_speed=%d", &value) == 1)
+        sShowSpeed = value >= 0 && value <= 2 ? value : 1;
+    else if (sscanf(line, "hold_speed=%d", &value) == 1)
+        sHoldSpeed = value >= 0 && value <= 4 ? value : 4;
+    else if (sscanf(line, "battle_menu=%d", &value) == 1)
+        sBattleMenu = value ? 1 : 0;
     else if (strncmp(line, "fps=", 4) == 0)
         sShowFps = line[4] == '1';
     else if (strncmp(line, "run=", 4) == 0)
@@ -161,9 +186,10 @@ void CtrSettings_Load(void)
     while (fgets(line, sizeof(line), file))
         CtrSettings_ApplyLine(line);
     fclose(file);
-    CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d pitch=%d zoom=%d blur=%d battle=%d fps=%d run=%d speed=%d%s",
-                 sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur],
-                 sVoxelBattle ? 1 : 0, sShowFps ? 1 : 0, sRunAlways ? 1 : 0,
+    CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d pitch=%d zoom=%d blur=%d battle3d=%d speedshow=%d hold=%d menu=%d "
+                 "fps=%d run=%d speed=%d%s",
+                 sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
+                 sShowSpeed, sHoldSpeed, sBattleMenu, sShowFps ? 1 : 0, sRunAlways ? 1 : 0,
                  sSpeeds[sSpeed] / 2, sSpeeds[sSpeed] & 1 ? ".5" : "");
 }
 
@@ -241,10 +267,11 @@ void CtrSettings_Freeze(void)
 int CtrSettings_Text(char *text, unsigned size)
 {
     int used = snprintf(text, size,
-             "voxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nvoxel_battle=%d\nfps=%d\nrun=%d\n"
-             "speed=%d%s\n",
-             sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattle ? 1 : 0,
-             sShowFps ? 1 : 0, sRunAlways ? 1 : 0, sSpeeds[sSpeed] / 2, sSpeeds[sSpeed] & 1 ? ".5" : "");
+             "voxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
+             "hold_speed=%d\nbattle_menu=%d\nfps=%d\nrun=%d\nspeed=%d%s\n",
+             sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
+             sShowSpeed, sHoldSpeed, sBattleMenu, sShowFps ? 1 : 0, sRunAlways ? 1 : 0,
+             sSpeeds[sSpeed] / 2, sSpeeds[sSpeed] & 1 ? ".5" : "");
     for (int i = 0; i < sExtraCount && used >= 0 && used < (int)size; ++i)
         used += snprintf(text + used, size - used, "%s=%d\n", sExtra[i].key, sExtra[i].value);
     return used;
@@ -300,15 +327,43 @@ bool CtrSettings_Voxel(void)
 
 int CtrSettings_GetInt(const char *key, int fallback)
 {
-    int index = ExtraIndex(key, false);
+    int index;
 
+    /* The port's newer options live in fields of their own (their OPTIONS
+     * rows still use the extras' key/value machinery). */
+    if (strcmp(key, "show_speed") == 0) return sShowSpeed;
+    if (strcmp(key, "hold_speed") == 0) return sHoldSpeed;
+    if (strcmp(key, "battle_menu") == 0) return sBattleMenu;
+    if (strcmp(key, "battle_3d") == 0) return sVoxelBattleMode;
+    index = ExtraIndex(key, false);
     return index >= 0 ? sExtra[index].value : fallback;
 }
 
 void CtrSettings_SetInt(const char *key, int value)
 {
-    int index = ExtraIndex(key, true);
+    int index;
 
+    if (strcmp(key, "show_speed") == 0)
+    {
+        CtrSettings_SetShowSpeed(value);
+        return;
+    }
+    if (strcmp(key, "hold_speed") == 0)
+    {
+        CtrSettings_SetHoldSpeedMode(value);
+        return;
+    }
+    if (strcmp(key, "battle_menu") == 0)
+    {
+        CtrSettings_SetBattleMenu(value);
+        return;
+    }
+    if (strcmp(key, "battle_3d") == 0)
+    {
+        CtrSettings_SetVoxelBattleMode(value);
+        return;
+    }
+    index = ExtraIndex(key, true);
     if (index < 0 || sExtra[index].value == value)
         return;
     if (strcmp(key, "clock_speed") == 0)
@@ -418,17 +473,83 @@ void CtrSettings_SetVoxelBlur(bool on)
     Save();
 }
 
+int CtrSettings_VoxelBattleMode(void)
+{
+    return sVoxelBattleMode;
+}
+
+void CtrSettings_SetVoxelBattleMode(int mode)
+{
+    if (mode < 0) mode = 0;
+    if (mode > 2) mode = 2;
+    if (sVoxelBattleMode == mode)
+        return;
+    sVoxelBattleMode = mode;
+    Save();
+    CtrLog_Write(CTR_LOG_FS, "settings: battle_3d=%d", mode);
+}
+
+/* AUTO follows the voxel world; ON asks for it even from a save that was
+ * written with the world off (the renderer still needs the world itself). */
 bool CtrSettings_VoxelBattle(void)
 {
-    return sVoxelBattle;
+    return sVoxelBattleMode == 2 || (sVoxelBattleMode == 1 && sVoxel);
 }
 
 void CtrSettings_SetVoxelBattle(bool on)
 {
-    if (sVoxelBattle == on)
+    CtrSettings_SetVoxelBattleMode(on ? 2 : 0);
+}
+
+int CtrSettings_ShowSpeed(void)
+{
+    return sShowSpeed;
+}
+
+void CtrSettings_SetShowSpeed(int mode)
+{
+    if (mode < 0) mode = 0;
+    if (mode > 2) mode = 2;
+    if (sShowSpeed == mode)
         return;
-    sVoxelBattle = on;
+    sShowSpeed = mode;
     Save();
+}
+
+int CtrSettings_HoldSpeedMode(void)
+{
+    return sHoldSpeed;
+}
+
+void CtrSettings_SetHoldSpeedMode(int mode)
+{
+    if (mode < 0) mode = 0;
+    if (mode > 4) mode = 4;
+    if (sHoldSpeed == mode)
+        return;
+    sHoldSpeed = mode;
+    Save();
+}
+
+/* The chosen MAX SPEED in halves, 0 when OFF. */
+int CtrSettings_HoldSpeedHalves(void)
+{
+    return sHoldSpeeds[sHoldSpeed];
+}
+
+int CtrSettings_BattleMenu(void)
+{
+    return sBattleMenu;
+}
+
+void CtrSettings_SetBattleMenu(int mode)
+{
+    mode = mode ? 1 : 0;
+    if (sBattleMenu == mode)
+        return;
+    sBattleMenu = mode;
+    Save();
+    CtrLog_Write(CTR_LOG_FS, "settings: battle_menu=%d", mode);
 }
 
 bool CtrSettings_ShowFps(void)

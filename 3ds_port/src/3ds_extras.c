@@ -32,6 +32,21 @@ static const char *const sMapModes[] = {
 };
 
 static const char *const sDayNight[] = {CTR_TEXT("OFF", "NO", "NON", "NO", "NENHUM", "AUS", "オフ"), "AUTO"};
+static const char *const sShowSpeedModes[] = {
+    CTR_TEXT("OFF", "NO", "NON", "NO", "NENHUM", "AUS", "OFF"),
+    "AUTO",
+    CTR_TEXT("ON", "S\xef\xbf\xbd?", "OUI", "S\xef\xbf\xbdO", "SIM", "AN", "ON"),
+};
+static const char *const sHoldSpeeds[] = {"OFF", "1.5X", "2X", "3X", "4X"};
+static const char *const sBattleMenus[] = {
+    CTR_TEXT("CLASSIC", "CL\xef\xbf\xbd?SICO", "CLASSIQUE", "CLASSICO", "CL\xef\xbf\xbd?SSICO", "KLASSISCH", "CLASSIC"),
+    CTR_TEXT("NEW", "NUEVO", "NOUVEAU", "NUOVO", "NOVO", "NEU", "NEW"),
+};
+static const char *const sBattle3D[] = {
+    CTR_TEXT("OFF", "NO", "NON", "NO", "NENHUM", "AUS", "OFF"),
+    "AUTO",
+    CTR_TEXT("ON", "S\xef\xbf\xbd?", "OUI", "S\xef\xbf\xbdO", "SIM", "AN", "ON"),
+};
 static const char *const sClockSpeeds[] = {"1X", "6X", "12X", "24X", "60X", "120X"};
 /* SYNC CLOCK: the local clock and 1X again, bonus berry time kept; on disk
  * with the next in-game save, like any other progress. */
@@ -270,6 +285,10 @@ const CtrExtra gCtrExtras[] =
     {CTR_EXTRAS_SCREEN(CTR_EXTRAS_OPTIONS, 1), CTR_TEXT("3D SPRITES", "SPRITES 3D", "SPRITES 3D", "SPRITE 3D", "SPRITES 3D", "3D-SPRITES", "3D スプライト"), "voxel_sprite_depth", 4, 0, sSpriteDepths, NULL, NULL, NULL},
     {CTR_EXTRAS_SCREEN(CTR_EXTRAS_OPTIONS, 1), CTR_TEXT("3D DEPTH", "PROFUNDIDAD 3D", "PROFONDEUR 3D", "PROFOND. 3D", "PROFUNDIDADE 3D", "3D-TIEFE", "3D おくゆき"), "voxel_depth", 7, 3, sVoxelDepths, NULL, NULL, NULL},
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("SPEED", "VELOC. JUEGO", "VITESSE", "VELOCITÀ", "VELOCIDADE", "TEMPO", "スピード"), "speed", 0, 0, NULL, NULL, SpeedStep, SpeedText},
+    {CTR_EXTRAS_OPTIONS, CTR_TEXT("SHOW SPEED", "VER VELOCIDAD", "AFFICH. VITESSE", "MOSTRA VELOCITA", "MOSTRAR VELOCIDADE", "TEMPO ZEIGEN", "SHOW SPEED"), "show_speed", 3, 1, sShowSpeedModes, NULL, NULL, NULL},
+    {CTR_EXTRAS_OPTIONS, CTR_TEXT("HOLD SPEED", "VELOC. AL MANTENER", "VITESSE MAINTENUE", "VEL. MANTENUTA", "VELOC. SEGURADA", "HALTETEMPO", "HOLD SPEED"), "hold_speed", 5, 4, sHoldSpeeds, NULL, NULL, NULL},
+    {CTR_EXTRAS_OPTIONS, CTR_TEXT("BATTLE MENU", "MENU COMBATE", "MENU COMBAT", "MENU LOTTA", "MENU BATALHA", "KAMPFMENU", "BATTLE MENU"), "battle_menu", 2, 0, sBattleMenus, NULL, NULL, NULL},
+    {CTR_EXTRAS_OPTIONS, CTR_TEXT("3D BATTLE", "COMBATE 3D", "COMBAT 3D", "BATTAGLIA 3D", "BATALHA 3D", "3D-KAMPF", "3D BATTLE"), "battle_3d", 3, 1, sBattle3D, NULL, NULL, NULL},
     /* The battle option controls the existing speed override; AUTO follows SPEED. */
     {CTR_EXTRAS_ENHANCEMENTS, CTR_TEXT("BATTLE SPEED", "VEL. COMBATE", "VITESSE COMBAT", "VEL. LOTTA", "VEL. BATALHA", "KAMPFTEMPO", "バトルそくど"), "battle_speed", 0, 0, NULL, NULL, BattleSpeedStep, BattleSpeedText},
     /* The game and the music keep real time on a slow frame; the sound

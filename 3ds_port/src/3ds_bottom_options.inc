@@ -51,6 +51,8 @@ static const OptRowDef sRowsUi[] = {
 };
 static const OptRowDef sRowsSystem[] = {
     EXTRA_ROW("speed"),
+    EXTRA_ROW("show_speed"),
+    EXTRA_ROW("hold_speed"),
     EXTRA_ROW("audio_clock"),
     GAME_ROW(OPT_FPS, CTR_TEXT("SHOW FPS", "MOSTRAR FPS", "AFFICH. FPS", "MOSTRA FPS", "MOSTRAR FPS", "FPS ZEIGEN", "FPS ひょうじ")),
 };
@@ -90,7 +92,8 @@ static const OptRowDef sRowsClock[] = {
 static const OptRowDef sRowsScene[] = {
     GAME_ROW(OPT_BATTLE_SCENE, CTR_TEXT("BATTLE SCENE", "ANIMACIÓN", "ANIM. COMBAT", "ANIMAZIONE", "ANIMAÇÃO", "KAMPFANIMAT.", "せんとうアニメ")),
     GAME_ROW(OPT_BATTLE_STYLE, CTR_TEXT("BATTLE STYLE", "ESTILO", "STYLE", "STILE", "ESTILO", "KAMPFSTIL", "しあいの ルール")),
-    GAME_ROW(OPT_VOXEL_BATTLE, CTR_TEXT("3D BATTLE", "COMBATE 3D", "COMBAT 3D", "BATTAGLIA 3D", "BATALHA 3D", "3D-KAMPF", "3D バトル")),
+    EXTRA_ROW("battle_3d"),
+    EXTRA_ROW("battle_menu"),
     EXTRA_ROW("battle_speed"),
 };
 static const OptRowDef sRowsRules[] = {
@@ -525,6 +528,8 @@ static void TabWidths(const u8 *const *labels, int n, int w, int *widths)
         widths[i] = most <= eq ? eq : widths[i] + (w - 2 * (n - 1) - need) / n;
 }
 
+static void FocusBox(int x, int y, int w, int h);
+
 static void DrawOptionTabs(const ViewState *s)
 {
     u8 labels[CAT_COUNT][24];
@@ -547,6 +552,8 @@ static void DrawOptionTabs(const ViewState *s)
 
         TextIn(names[i], x, oy, widths[i], OPT_TAB_H, &sSmall, 'c', live || pressed ? STYLE_WHITE : STYLE_INK, 3);
         AddHit(x, GV_Y, widths[i], OPT_TAB_H + 1, HIT_CAT + cats[i]);
+        if (sInside == INSIDE_OPTIONS && sOptLevel == 2 && s->optPage == cats[i])
+            FocusBox(x, GV_Y, widths[i], OPT_TAB_H + 1);
     }
 }
 
@@ -572,6 +579,8 @@ static void DrawGroupTabs(const ViewState *s)
         TextIn(Ascii(cat->groups[groups[i]].name), gx, oy, gw, OPT_GROUP_H, &sSmall, 'c',
                live || pressed ? STYLE_WHITE : STYLE_INK, 3);
         AddHit(gx, OPT_GROUP_Y, gw, OPT_GROUP_H + 2, HIT_GROUP + groups[i]);
+        if (sInside == INSIDE_OPTIONS && sOptLevel == 1 && live)
+            FocusBox(gx, OPT_GROUP_Y, gw, OPT_GROUP_H + 2);
     }
 }
 
@@ -694,6 +703,7 @@ static void ShowOptionGroup(u8 cat, u8 group)
         return;
     sOptPage = cat;
     sOptSub = group;
+    sOptLevel = 0;
     sOptFocus = 0;
     PlaySE(SE_SELECT);
 }
@@ -782,12 +792,43 @@ static void StepGroup(int dir)
 
 static void MoveFocus(u8 *focus, u8 to);
 
-static void OptionKeys(u16 down)
+static int OptionFirst(void)
 {
     OptRow rows[OPT_ROWS_MAX];
     int n = ShownRows(rows);
 
-    if (down & B_BUTTON)
+    for (int i = 0; i < n; ++i)
+        if (RowLive(&rows[i], CtrSettings_Voxel()))
+            return i;
+    return 0;
+}
+
+static int OptionLast(void)
+{
+    OptRow rows[OPT_ROWS_MAX];
+    int n = ShownRows(rows);
+
+    for (int i = n - 1; i >= 0; --i)
+        if (RowLive(&rows[i], CtrSettings_Voxel()))
+            return i;
+    return n > 0 ? n - 1 : 0;
+}
+
+static void OptionKeys(u16 down)
+{
+    OptRow rows[OPT_ROWS_MAX];
+    int n = ShownRows(rows);
+    bool8 back = (down & B_BUTTON) != 0;
+
+    /* The tab focus and the rows are drawn from globals too. */
+    sForceRedraw = TRUE;
+    if (back && sOptLevel > 0)
+    {
+        --sOptLevel;
+        PlaySE(SE_SELECT);
+        return;
+    }
+    if (back)
     {
         sInside = INSIDE_NONE;
         sFocus = SCR_OPTION;
@@ -799,24 +840,82 @@ static void OptionKeys(u16 down)
         StepGroup((down & R_BUTTON) ? 1 : -1);
         return;
     }
+
+    if (sOptLevel == 2)
+    {
+        /* The category tabs. */
+        if (down & (DPAD_LEFT | DPAD_RIGHT))
+        {
+            StepCategory((down & DPAD_RIGHT) ? 1 : -1);
+            sOptLevel = 2;
+        }
+        else if (down & (DPAD_DOWN | A_BUTTON))
+        {
+            sOptLevel = 1;
+            PlaySE(SE_SELECT);
+        }
+        return;
+    }
+    if (sOptLevel == 1)
+    {
+        /* The group tabs. */
+        if (down & (DPAD_LEFT | DPAD_RIGHT))
+        {
+            StepGroup((down & DPAD_RIGHT) ? 1 : -1);
+            sOptLevel = 1;
+        }
+        else if (down & DPAD_UP)
+        {
+            sOptLevel = 2;
+            PlaySE(SE_SELECT);
+        }
+        else if (down & (DPAD_DOWN | A_BUTTON))
+        {
+            sOptLevel = 0;
+            sOptFocus = (u8)OptionFirst();
+            PlaySE(SE_SELECT);
+        }
+        return;
+    }
+
+    /* The rows.  With no row yet, DOWN takes the first and UP the last. */
     if (sOptFocus >= n)
-        sOptFocus = OptionStep(0xFF, 1) == 0xFF ? 0 : OptionStep(0xFF, 1);
+    {
+        if (!(down & (DPAD_UP | DPAD_DOWN)))
+            return;
+        sOptFocus = (u8)((down & DPAD_UP) ? OptionLast() : OptionFirst());
+        PlaySE(SE_SELECT);
+        return;
+    }
     if (down & DPAD_UP)
-        MoveFocus(&sOptFocus, OptionStep(sOptFocus, -1));
+    {
+        if (sOptFocus == OptionFirst())
+        {
+            sOptLevel = 1;
+            PlaySE(SE_SELECT);
+        }
+        else if (sOptFocus > 0)
+            MoveFocus(&sOptFocus, OptionStep(sOptFocus, -1));
+    }
     else if (down & DPAD_DOWN)
-        MoveFocus(&sOptFocus, OptionStep(sOptFocus, 1));
-    else if (sOptFocus < n && (down & DPAD_LEFT))
+    {
+        if (sOptFocus == OptionLast())
+            MoveFocus(&sOptFocus, (u8)OptionFirst());
+        else
+            MoveFocus(&sOptFocus, OptionStep(sOptFocus, 1));
+    }
+    else if (down & DPAD_LEFT)
     {
         if (RowKind(&rows[sOptFocus]) != KIND_ACTION)
             StepRow(&rows[sOptFocus], TRUE);
     }
-    else if (sOptFocus < n && (down & DPAD_RIGHT))
+    else if (down & DPAD_RIGHT)
     {
         /* RIGHT steps a value. An action (HOENN DEX FULL, GIVE...) has no
          * value to step and cannot be undone: A alone runs it, as a tap. */
         if (RowKind(&rows[sOptFocus]) != KIND_ACTION)
             StepRow(&rows[sOptFocus], FALSE);
     }
-    else if (sOptFocus < n && (down & A_BUTTON))
+    else if (down & A_BUTTON)
         StepRow(&rows[sOptFocus], FALSE);
 }

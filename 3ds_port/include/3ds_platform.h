@@ -126,9 +126,22 @@ bool CtrSettings_VoxelBlur(void);
 int CtrSettings_VoxelBlurStrength(void);
 void CtrSettings_StepVoxelBlur(int direction);
 void CtrSettings_SetVoxelBlur(bool on);
-/* Battles in front of the voxel world (3ds_video.c), off by default. */
+/* Battles in front of the voxel world (3ds_video.c): OFF, AUTO (follow the
+ * VOXEL 3D world) or ON; AUTO is the default. */
+int CtrSettings_VoxelBattleMode(void);
+void CtrSettings_SetVoxelBattleMode(int mode);
 bool CtrSettings_VoxelBattle(void);
 void CtrSettings_SetVoxelBattle(bool on);
+/* SHOW SPEED in the top corner: 0 OFF, 1 AUTO, 2 ON. */
+int CtrSettings_ShowSpeed(void);
+void CtrSettings_SetShowSpeed(int mode);
+/* HOLD SPEED: the ZL/ZR boost, 0 OFF or an index into 1.5x/2x/3x/4x. */
+int CtrSettings_HoldSpeedMode(void);
+void CtrSettings_SetHoldSpeedMode(int mode);
+int CtrSettings_HoldSpeedHalves(void);
+/* BATTLE MENU: 0 CLASSIC (the GBA menu), 1 NEW (the bottom screen's). */
+int CtrSettings_BattleMenu(void);
+void CtrSettings_SetBattleMenu(int mode);
 /* The FPS counter on the top screen, off by default. */
 bool CtrSettings_ShowFps(void);
 void CtrSettings_SetShowFps(bool on);
@@ -138,10 +151,19 @@ void CtrSettings_SetRunAlways(bool on);
 /* Settings kept by key (the OPTIONS pages of 3ds_extras.c). */
 int CtrSettings_GetInt(const char *key, int fallback);
 void CtrSettings_SetInt(const char *key, int value);
-/* Fast-forward: game frames per shown frame in halves, 2 (1x) to 8 (4x),
- * 3 being 1.5x (OPTIONS, ZR/ZL). */
+/* The legacy fast-forward choice: game frames per shown frame in halves,
+ * 2 (1x) to 8 (4x). ZL/ZR now use the HOLD SPEED setting instead. */
 int CtrSettings_SpeedHalves(void);
 void CtrSettings_StepSpeed(int direction, bool wrap);
+/* ZL/ZR held: the effective speed and the lock notice's kind (0 none,
+ * 1 LOCKED, 2 NORMAL).  Defined by the host's platform file. */
+int CtrPlatform_DisplaySpeedHalves(void);
+int CtrPlatform_SpeedBadgeKind(void);
+/* A ZL/ZR scan: updates the hold/lock state and returns an event for the
+ * caller's sound (1 boost, 2 lock, 3 unlock), or 0. */
+int CtrPlatform_SpeedButtons(bool zl, bool zr);
+/* The port's speed feedback (the game plays the actual effects). */
+void CtrGame_SpeedSound(int event);
 /* The battle scene's own speed, in the same halves: the overworld's SPEED
  * until L or R is pressed in a battle (settings.txt battle_speed=). */
 int CtrSettings_BattleSpeedHalves(void);

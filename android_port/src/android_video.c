@@ -1641,7 +1641,10 @@ static float sRenderScale;
  * surfaces when the player is using the classic 2D field. */
 static void EnsureVoxel(void)
 {
-    if (sVoxelReady || sVoxelTried || !CtrSettings_Voxel())
+    /* AUTO only needs the world when VOXEL 3D is on; ON needs it for the
+     * battle even if the field itself stays 2D. */
+    if (sVoxelReady || sVoxelTried
+        || (!CtrSettings_Voxel() && CtrSettings_VoxelBattleMode() != 2))
         return;
     sVoxelTried = true;
     VoxelGlInit();
@@ -1957,6 +1960,18 @@ static const char *const sFpsGlyphs[] = {
     "111100111100100", /* F */
     "111101111100100", /* P */
     "001001010100100", /* / */
+    "000000000000010", /* . */
+    "101101010101101", /* X */
+    "010101111101101", /* A */
+    "011100100100011", /* C */
+    "110101101101110", /* D */
+    "111100110100111", /* E */
+    "101101110101101", /* K */
+    "100100100100111", /* L */
+    "101111111101101", /* M */
+    "101111101101101", /* N */
+    "010101101101010", /* O */
+    "110101110101101", /* R */
 };
 static float sOverlayFps, sOverlayGameFps;
 /* Defined with the quads, further down. */
@@ -1988,40 +2003,57 @@ static void UpdateOverlayFps(void)
     }
 }
 
-/* On the window (w x h): its top left at (x, y) from the window's top left,
- * one font pixel `px` window pixels. Quad's y counts from the bottom there. */
-static void DrawFps(int w, int h, float x, float y, float px)
+static int OverlayGlyph(char c)
 {
-    unsigned fps = (unsigned)(sOverlayFps + 0.5f), game = (unsigned)(sOverlayGameFps + 0.5f);
-    unsigned glyphs[12], count = 0;
-    char digits[8];
-    int length = snprintf(digits, sizeof(digits), "%u/%u", fps > 999 ? 999 : fps, game > 999 ? 999 : game);
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    switch (c)
+    {
+    case 'F': return 10;
+    case 'P': return 11;
+    case '/': return 12;
+    case '.': return 13;
+    case 'X': case 'x': return 14;
+    case 'A': return 15;
+    case 'C': return 16;
+    case 'D': return 17;
+    case 'E': return 18;
+    case 'K': return 19;
+    case 'L': return 20;
+    case 'M': return 21;
+    case 'N': return 22;
+    case 'O': return 23;
+    case 'R': return 24;
+    }
+    return -1;
+}
 
-    glyphs[count++] = 10;  /* F */
-    glyphs[count++] = 11;  /* P */
-    glyphs[count++] = 5;   /* S, which is a 5 */
-    glyphs[count++] = ~0u; /* space */
-    for (int i = 0; i < length && count < 12; ++i)
-        glyphs[count++] = digits[i] == '/' ? 12u : (unsigned)(digits[i] - '0');
-
-    /* Quads count in this window's pixels while it draws; the frame's own
-     * targets set their size once and draw on (QuadTarget), so it goes back. */
+/* One line of the 3x5 font on the window, `line` 0 at the corner and 1 under
+ * it.  Quad's y counts from the bottom there. */
+static void DrawOverlayLine(int w, int h, float x, float y, float px, const char *text, int line)
+{
+    int count = (int)strlen(text);
     int savedW = sQuadW, savedH = sQuadH;
+    float top = y + (2 + line * 13) * px;
+
+    if (count <= 0 || count > 24)
+        return;
     sQuadW = w;
     sQuadH = h;
     BlendOver();
 #define FPS_RECT(x0, y0, x1, y1, abgr) Rect((x0), h - (y1), (x1), h - (y0), (abgr))
-    FPS_RECT(x + 2 * px, y + 2 * px, x + (2 + count * 4 + 3) * px, y + (2 + 5 + 4) * px, 0xA0000000u);
-    for (unsigned i = 0; i < count; ++i)
+    FPS_RECT(x + 2 * px, top, x + (2 + count * 4 + 3) * px, top + 9 * px, 0xA0000000u);
+    for (int i = 0; i < count; ++i)
     {
-        if (glyphs[i] == ~0u)
+        int glyph = OverlayGlyph(text[i]);
+
+        if (glyph < 0)
             continue;
-        const char *g = sFpsGlyphs[glyphs[i]];
         for (int row = 0; row < 5; ++row)
             for (int col = 0; col < 3; ++col)
-                if (g[row * 3 + col] == '1')
+                if (sFpsGlyphs[glyph][row * 3 + col] == '1')
                 {
-                    float gx = x + (4 + i * 4 + col) * px, gy = y + (4 + row) * px;
+                    float gx = x + (4 + i * 4 + col) * px, gy = top + (2 + row) * px;
                     FPS_RECT(gx, gy, gx + px, gy + px, 0xFFFFFFFFu);
                 }
     }
@@ -2029,6 +2061,31 @@ static void DrawFps(int w, int h, float x, float y, float px)
     glDisable(GL_BLEND);
     sQuadW = savedW;
     sQuadH = savedH;
+}
+
+/* On the window (w x h): its top left at (x, y) from the window's top left,
+ * one font pixel `px` window pixels. */
+static void DrawFps(int w, int h, float x, float y, float px)
+{
+    unsigned fps = (unsigned)(sOverlayFps + 0.5f), game = (unsigned)(sOverlayGameFps + 0.5f);
+    char text[16];
+
+    snprintf(text, sizeof(text), "FPS %u/%u", fps > 999 ? 999 : fps, game > 999 ? 999 : game);
+    DrawOverlayLine(w, h, x, y, px, text, 0);
+}
+
+/* The speed under the FPS line, when SHOW SPEED asks for it. */
+static void DrawSpeed(int w, int h, float x, float y, float px)
+{
+    char text[24];
+    int speed = CtrPlatform_DisplaySpeedHalves(), badge = CtrPlatform_SpeedBadgeKind();
+    int show = CtrSettings_ShowSpeed();
+    const char *suffix = badge == 1 ? " LOCKED" : badge == 2 ? " NORMAL" : "";
+
+    if (show == 0 || (show == 1 && speed <= 2 && badge == 0))
+        return;
+    snprintf(text, sizeof(text), "%d%sX%s", speed / 2, speed & 1 ? ".5" : "", suffix);
+    DrawOverlayLine(w, h, x, y, px, text, CtrSettings_ShowFps() ? 1 : 0);
 }
 #endif
 
@@ -2137,8 +2194,12 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
     if (screen == HOST_SCREEN_TOP && sPanelShown)
         DrawPanel(w, h);
 #if CTR_SHOW_FPS
-    if (screen == HOST_SCREEN_TOP && CtrSettings_ShowFps())
-        DrawFps(w, h, (float)x, (float)y, (float)vh / (float)ph);
+    if (screen == HOST_SCREEN_TOP)
+    {
+        if (CtrSettings_ShowFps())
+            DrawFps(w, h, (float)x, (float)y, (float)vh / (float)ph);
+        DrawSpeed(w, h, (float)x, (float)y, (float)vh / (float)ph);
+    }
 #endif
     {
         static int sDrawErrors;
@@ -3897,7 +3958,7 @@ static bool BattleWorldFrame(void)
             CtrVoxel_EndBattle();
         return false;
     }
-    if (!CtrSettings_Voxel() || !CtrSettings_VoxelBattle() || !CtrVoxel_IsAvailableForBattle())
+    if (!CtrSettings_VoxelBattle() || !CtrVoxel_IsAvailableForBattle())
         return false;
     bool sliding = CtrBattleIntro_Sliding() != 0, moveBg = CtrBattleBg_MoveBgShown() != 0;
 

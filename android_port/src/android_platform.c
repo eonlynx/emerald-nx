@@ -363,11 +363,73 @@ int CtrPlatform_BattleSpeedBadge(void)
 static unsigned sFastEarly;
 static float sGameAvgMs;
 static unsigned sSpeedHalves = 2;
+
+/* ZL/ZR: either one holds the MAX SPEED; both together lock it (or return
+ * to 1x).  With MAX SPEED OFF the legacy SPEED / battle speed remains. */
+static bool sSpeedZl, sSpeedZr, sSpeedLocked, sSpeedNoBoost;
+static int sSpeedBadgeKind;
+static uint64_t sSpeedBadgeUntil;
+
+static int EffectiveSpeedHalves(void)
+{
+    int max = CtrSettings_HoldSpeedHalves();
+
+    if (LocalLink_InSession())
+        return 2;
+    if (max > 0)
+    {
+        if (sSpeedLocked)
+            return max;
+        if ((sSpeedZl || sSpeedZr) && !sSpeedNoBoost)
+            return max;
+        return 2;
+    }
+    return CtrPlatform_BattleSpeedKeys() ? CtrSettings_BattleSpeedHalves() : CtrSettings_SpeedHalves();
+}
+
+int CtrPlatform_DisplaySpeedHalves(void)
+{
+    return EffectiveSpeedHalves();
+}
+
+int CtrPlatform_SpeedBadgeKind(void)
+{
+    return CtrPlatform_Milliseconds() < sSpeedBadgeUntil ? sSpeedBadgeKind : 0;
+}
+
+int CtrPlatform_SpeedButtons(bool zl, bool zr)
+{
+    const bool both = zl && zr, bothWas = sSpeedZl && sSpeedZr;
+    int event = 0;
+
+    if (CtrSettings_HoldSpeedHalves() <= 0)
+    {
+        sSpeedZl = sSpeedZr = sSpeedLocked = sSpeedNoBoost = false;
+        sSpeedBadgeKind = 0;
+        return 0;
+    }
+    if (!zl && !zr)
+        sSpeedNoBoost = false;
+    if (both && !bothWas)
+    {
+        sSpeedLocked = !sSpeedLocked;
+        /* While both stay down after the chord, the chord's 1x wins over
+         * the hold boost; letting go re-arms the hold. */
+        sSpeedNoBoost = true;
+        sSpeedBadgeKind = sSpeedLocked ? 1 : 2;
+        sSpeedBadgeUntil = CtrPlatform_Milliseconds() + 2500;
+        event = sSpeedLocked ? 2 : 3;
+    }
+    else if (!sSpeedLocked && (zl != sSpeedZl || zr != sSpeedZr) && (zl || zr) && !both)
+        event = 1;
+    sSpeedZl = zl;
+    sSpeedZr = zr;
+    return event;
+}
+
 static bool FrameShown(uint64_t now)
 {
-    unsigned speed = LocalLink_InSession() ? 2
-                   : CtrPlatform_BattleSpeedKeys() ? (unsigned)CtrSettings_BattleSpeedHalves()
-                   : (unsigned)CtrSettings_SpeedHalves();
+    unsigned speed = (unsigned)EffectiveSpeedHalves();
 
     sSpeedHalves = speed;
     sGameAvgMs = sTiming.gameMs > sGameAvgMs ? sTiming.gameMs : sGameAvgMs * 0.95f + sTiming.gameMs * 0.05f;
