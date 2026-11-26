@@ -664,7 +664,7 @@ static void DrawOptionRow(const ViewState *s, int i, const OptRow *r, const u8 o
     }
     TextIn(RowLabel(r), AREA_X + 2, ry, left - AREA_X - 4, rh, OptFont(RowLabel(r), left - AREA_X - 16), 'l',
            kind == KIND_INFO || !live ? STYLE_GRAY : STYLE_INK, 6);
-    if (s->optFocus == i)
+    if (sOptLevel == 0 && s->optFocus == i)
         FocusBox(AREA_X + 4, ry + 1, AREA_W - 8, rh - 1);
 }
 

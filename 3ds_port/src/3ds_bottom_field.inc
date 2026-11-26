@@ -8,6 +8,8 @@
 /* The map                                                                  */
 /* ------------------------------------------------------------------------ */
 
+static void DrawKeyFocus(int x, int y, int w, int h);
+
 /*
  * The region map in its window: the GBA's 248x160 picture (31 by 20 of its
  * tiles), 1:1 or zoomed in twice the size as the PokéNav's A shows it, the
@@ -675,6 +677,13 @@ static void DrawRegionMap(const ViewState *s)
         AddHit(RMAP_ORIGIN_X, RMAP_ORIGIN_Y, RMAP_PIC_W, RMAP_PIC_H, HIT_MAP);
         DrawMapPanel(s);
         DrawZoomButton(s);
+        if (sInside == INSIDE_MAP)
+        {
+            if (sMapFocus == 0)
+                DrawKeyFocus(RMAP_ORIGIN_X - 3, RMAP_ORIGIN_Y - 3, RMAP_PIC_W + 6, RMAP_PIC_H + 6);
+            else
+                DrawKeyFocus(ZOOM_X - 4, ZOOM_Y - 4, ZOOM_W + 8, ZOOM_H + 8);
+        }
     }
     if (s->clockNotice)
     {
@@ -726,6 +735,20 @@ static void DrawFlyHeader(const ViewState *s)
     TextIn(gText_Cancel2, FLY_CANCEL_X, oy, FLY_CANCEL_W, HEAD_H, FitFont(&sNormal, gText_Cancel2, FLY_CANCEL_W - 8), 'c',
            STYLE_WHITE, 4);
     AddHit(FLY_CANCEL_X, HEAD_Y - 2, W - FLY_CANCEL_X, HEAD_H + 4, HIT_MAP_FLY_CANCEL);
+}
+
+/* The red key focus: a 2-pixel frame round a control, shown only while the
+ * bottom screen has the buttons. */
+static void DrawKeyFocus(int x, int y, int w, int h)
+{
+    u16 c = PackRgb(224, 54, 44);
+
+    if (w < 4 || h < 4)
+        return;
+    FillRect(x + 1, y, w - 2, 2, c);
+    FillRect(x + 1, y + h - 2, w - 2, 2, c);
+    FillRect(x, y + 1, 2, h - 2, c);
+    FillRect(x + w - 2, y + 1, 2, h - 2, c);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -827,6 +850,8 @@ static void DrawTrainerCard(const ViewState *s)
     TextIn(Ascii(CTR_TEXT("FLIP", "GIRAR", "TOURNER", "GIRA", "VIRAR", "DREHEN", "うらがえす")), AREA_X + AREA_W - CARD_FLIP_W, oy, CARD_FLIP_W,
            CARD_BADGES_H, &sNormal, 'c', STYLE_WHITE, 6);
     AddHit(AREA_X + AREA_W - CARD_FLIP_W, CARD_BADGES_Y, CARD_FLIP_W, CARD_BADGES_H, HIT_OK);
+    if (sInside == INSIDE_CARD)
+        DrawKeyFocus(AREA_X + AREA_W - CARD_FLIP_W - 2, CARD_BADGES_Y - 2, CARD_FLIP_W + 4, CARD_BADGES_H + 4);
 }
 
 /* ------------------------------------------------------------------------ */

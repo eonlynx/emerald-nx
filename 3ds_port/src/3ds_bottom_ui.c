@@ -2452,6 +2452,8 @@ static u8 sPickMapsec = MAPSEC_NONE, sPickX, sPickY, sPickPos;
 static bool8 sMapZoom, sMapFly;
 static u8 sFlySlot, sFlyFrom;
 static s16 sMapViewX, sMapViewY;
+/* With the buttons: MAP's big frame, or the zoom lens's. */
+static u8 sMapFocus;
 /* Map extras: the wild list instead of the map, its page; the load
  * (CtrClockStore_LoadSerial) whose clock banner was dismissed. */
 static bool8 sEncView;
@@ -7016,6 +7018,8 @@ static void ChooseColumnItem(u8 mode, u8 item)
         }
         if (item == SCR_SAVE)
             sSaveChoice = 0;
+        if (item == SCR_MAP)
+            sMapFocus = 0;
     }
 }
 
@@ -7065,8 +7069,35 @@ static void MapKeys(u8 mode, u16 down)
     (void)mode;
     if (down & B_BUTTON)
     {
+        if (sMapFocus != 0)
+        {
+            sMapFocus = 0;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
         sInside = INSIDE_NONE;
         sFocus = SCR_MAP;
+        PlaySE(SE_SELECT);
+        return;
+    }
+    if (sMapFocus != 0)
+    {
+        /* The zoom lens: A presses it; any direction goes back to the map. */
+        if (down & A_BUTTON)
+            MapTap(HIT_MAP_ZOOM);
+        else if (down & (DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT))
+        {
+            sMapFocus = 0;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
+        return;
+    }
+    if (down & A_BUTTON)
+    {
+        sMapFocus = 1;
+        sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
     }
     else if (down & DPAD_UP)
@@ -7077,8 +7108,6 @@ static void MapKeys(u8 mode, u16 down)
         MapMovePick(-1, 0);
     else if (down & DPAD_RIGHT)
         MapMovePick(1, 0);
-    else if (down & A_BUTTON)
-        MapTap(HIT_MAP_ZOOM);
 }
 
 static void ProcessKeys(u8 mode)
@@ -7159,6 +7188,7 @@ static void ProcessKeys(u8 mode)
         if (mode == MODE_FIELD && sScreen == SCR_MAP)
         {
             sInside = INSIDE_MAP;
+            sMapFocus = 0;
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
             return;
