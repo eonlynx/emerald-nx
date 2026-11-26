@@ -37,8 +37,12 @@ void CtrInput_Scan(void)
      * MAX SPEED or return to 1x.  The platform owns the state (the pacing
      * reads it); the sound is the caller's. */
     {
-        int event = CtrScenario_Active() ? 0
-                  : CtrPlatform_SpeedButtons((host.buttons & HOST_BTN_ZL) != 0,
+        int event = 0;
+
+        if (CtrScenario_Active())
+            CtrPlatform_SpeedButtons(false, false);   /* no stale hold/lock */
+        else
+            event = CtrPlatform_SpeedButtons((host.buttons & HOST_BTN_ZL) != 0,
                                              (host.buttons & HOST_BTN_ZR) != 0);
         if (event && CtrPlatform_FrameCount() > 0)
             CtrGame_SpeedSound(event);

@@ -376,6 +376,8 @@ static int EffectiveSpeedHalves(void)
 
     if (LocalLink_InSession())
         return 2;
+    if (CtrScenario_Active())
+        return CtrPlatform_BattleSpeedKeys() ? CtrSettings_BattleSpeedHalves() : CtrSettings_SpeedHalves();
     if (max > 0)
     {
         if (sSpeedLocked)

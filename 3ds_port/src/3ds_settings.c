@@ -19,8 +19,13 @@
 /* Written first, then put in the file's place (WriteText). */
 #define SETTINGS_TEMP "settings.txt.tmp"
 
-/* VOXEL 3D is the default; the classic 2D field is one Y press away. */
+/* VOXEL 3D is the Switch default; the classic 2D field is one Y press away.
+ * The 3DS and Android keep their long-standing 2D default. */
+#ifdef __SWITCH__
 static bool sVoxel = true;
+#else
+static bool sVoxel = false;
+#endif
 
 /*
  * The voxel camera: a few degrees either way of its 40 degree pitch, and a
@@ -48,8 +53,12 @@ static int sShowSpeed = 1;
  * OFF.  The default is 4x. */
 static int sHoldSpeed = 4;
 /* BATTLE MENU: 0 CLASSIC (the GBA menu on the top screen), 1 NEW (the 3DS
- * battle menu on the bottom screen). */
+ * battle menu on the bottom screen).  NEW is the Switch default. */
+#ifdef __SWITCH__
 static int sBattleMenu = 1;
+#else
+static int sBattleMenu = 0;
+#endif
 /* The FPS counter in the top screen's corner (3ds_video.c): off unless
  * turned on. */
 static bool sShowFps = false;
@@ -117,14 +126,22 @@ static int Find(const int *values, int count, int value, int fallback)
  */
 void CtrSettings_Defaults(void)
 {
+#ifdef __SWITCH__
     sVoxel = true;
+#else
+    sVoxel = false;
+#endif
     sPitch = 2;
     sZoom = 1;
     sBlur = COUNT(sBlurs) - 1;
     sVoxelBattleMode = 1;
     sShowSpeed = 1;
     sHoldSpeed = 4;
+#ifdef __SWITCH__
     sBattleMenu = 1;
+#else
+    sBattleMenu = 0;
+#endif
     sShowFps = false;
     sRunAlways = false;
     sSpeed = 0;
@@ -194,9 +211,11 @@ void CtrSettings_Load(void)
     fclose(file);
     if (!sSettingsRev)
     {
-        /* The old file had VOXEL 3D off and CLASSIC by default. */
+#ifdef __SWITCH__
+        /* The old Switch file had VOXEL 3D off and CLASSIC by default. */
         sVoxel = true;
         sBattleMenu = 1;
+#endif
         sSettingsRev = true;
     }
     CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d pitch=%d zoom=%d blur=%d battle3d=%d speedshow=%d hold=%d menu=%d "
