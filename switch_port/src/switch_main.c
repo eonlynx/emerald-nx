@@ -8,6 +8,7 @@
 #include <switch.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -18,11 +19,20 @@
 #define APP_DIR "sdmc:/switch/emerald-nx"
 #define LOG_PATH APP_DIR "/emerald-nx.log"
 
-/* The launcher expects the process itself to end; libnx's exit path runs
- * cleanup that does not match the loader's low mapping and reports an error.
- * The loader's own return path uses svcExitProcess too. */
+/* libnx only sends the applet's exit commands for an NSO by default.  This
+ * is an NRO running in a title takeover: without them Horizon reports
+ * "the software was closed because an error occurred" on the way back to
+ * the launcher.  Mode 1 runs them for an NRO too. */
+u32 __nx_applet_exit_mode = 1;
+
+/* libnx's own exit path: runs __appExit (which arms the applet exit) and
+ * then the loader's exit function.  newlib's exit()/_exit() bypasses it, and
+ * svcExitProcess skips the applet's exit command entirely. */
+void __libnx_exit(int rc) __attribute__((noreturn));
+
 void CtrPlatform_ExitProcess(void) {
-    svcExitProcess();
+    CtrPlatform_Shutdown();
+    __libnx_exit(0);
 }
 
 /* stderr may not exist yet when the game starts; write a breadcrumb through
