@@ -2433,8 +2433,9 @@ static u16 ExtraShownValue(const CtrExtra *extra)
 /* The keyboard focus (X) on the dock and the header, and where it is inside
  * a screen. */
 #define FOCUS_NONE 0xFF
-enum { INSIDE_NONE, INSIDE_OPTIONS, INSIDE_SAVE };
-static u8 sFocus = FOCUS_NONE, sInside, sOptFocus;
+enum { INSIDE_NONE, INSIDE_OPTIONS, INSIDE_SAVE, INSIDE_MAP, INSIDE_CARD };
+static u8 sFocus = FOCUS_NONE, sInside, sOptFocus, sOptLevel;
+static u8 sSaveChoice;
 /* Leaving the focus, the buttons stay the bottom screen's until let go:
  * the B or A that left it must not reach the game. */
 static bool8 sSwallow;
@@ -2559,6 +2560,9 @@ typedef struct
 
 static BattleAsk sAsk, sAsked;
 static u8 sBattleTap = 0xFF;   /* a tap for the controller to take */
+/* In battle, X keeps the bottom screen up even when the NEW battle menu
+ * would only show it on the player's turn; B hides it for this turn. */
+static bool8 sBattlePanel, sBattlePanelOff;
 static bool8 sMoveCancel;      /* the move menu's cursor is on CANCEL */
 static bool8 sQuickBallTap;    /* the ball button was tapped */
 static bool8 sQuickBallFocus;  /* the D-pad is on the ball button (A throws) */
@@ -2719,9 +2723,9 @@ bool8 CtrBattleMenu_Active(void)
     /* Link battles too (local wireless): the player's choices go through the
      * same controller. Drawn on the top screen, the menu ran into the wide
      * text box. Not for a recorded battle played back: nobody chooses. */
-    /* Nor on a single screen: the game's own menus, on the top screen as on
-     * the GBA (CtrBottom_Vanilla). */
-    return sRes.ready && !(gBattleTypeFlags & BATTLE_TYPE_RECORDED) && !CtrVideo_SingleScreen();
+    /* The single-screen port uses the GBA menu unless BATTLE MENU is NEW. */
+    return sRes.ready && !(gBattleTypeFlags & BATTLE_TYPE_RECORDED)
+        && (CtrSettings_BattleMenu() == 1 || !CtrVideo_SingleScreen());
 }
 
 void CtrBattleMenu_Begin(void)
@@ -2732,12 +2736,12 @@ void CtrBattleMenu_Begin(void)
     sQuickBallFocus = FALSE;
 }
 
-/* The ball button once per tap, or X once per press (R and L are the battle
- * speed's): the action handler throws the ball. X is free in a battle, the
- * column that takes it in the field is not shown. */
+/* The ball button once per tap, or SELECT once per press in the action menu
+ * (R and L are the battle speed's): the action handler throws the ball.
+ * Outside battle SELECT remains the game's registered-item button. */
 bool8 CtrBattleMenu_TakeQuickBall(void)
 {
-    bool8 tapped = sQuickBallTap || (CtrInput_Get()->physicalDown & CTR_KEY_X) != 0;
+    bool8 tapped = sQuickBallTap || (CtrInput_Get()->physicalDown & CTR_KEY_SELECT) != 0;
 
     sQuickBallTap = FALSE;
     return tapped;
@@ -6172,6 +6176,7 @@ static void DoSave(void)
 static void OpenSave(void)
 {
     sSaveStep = SAVE_ASK;
+    sSaveChoice = 0;
     StringExpandPlaceholders(sSaveMessage, gText_ConfirmSave);
 }
 
@@ -6998,19 +7003,36 @@ static void ChooseColumnItem(u8 mode, u8 item)
     Activate(HIT_COLUMN + item, mode);
     if (gameScreen)
         LeaveFocus();
-    else if (item == SCR_OPTION || item == SCR_SAVE)
+    else if (item == SCR_OPTION || item == SCR_SAVE || item == SCR_MAP || item == SCR_CARD)
     {
         sFocus = FOCUS_NONE;
-        sInside = item == SCR_OPTION ? INSIDE_OPTIONS : INSIDE_SAVE;
+        sInside = item == SCR_OPTION ? INSIDE_OPTIONS : item == SCR_SAVE ? INSIDE_SAVE
+                : item == SCR_MAP ? INSIDE_MAP : INSIDE_CARD;
+        sForceRedraw = TRUE;
         if (item == SCR_OPTION)
-            sOptFocus = OptionStep(0xFF, 1) == 0xFF ? 0 : OptionStep(0xFF, 1);
+        {
+            sOptLevel = 0;
+            sOptFocus = 0xFF;   /* the first arrow picks first or last */
+        }
+        if (item == SCR_SAVE)
+            sSaveChoice = 0;
     }
 }
 
 static void SaveKeys(u8 mode, u16 down)
 {
+    if (sSaveStep != SAVE_DONE && (down & (DPAD_UP | DPAD_LEFT)) && sSaveChoice != 0)
+    {
+        sSaveChoice = 0;
+        sForceRedraw = TRUE;
+    }
+    else if (sSaveStep != SAVE_DONE && (down & (DPAD_DOWN | DPAD_RIGHT)) && sSaveChoice != 1)
+    {
+        sSaveChoice = 1;
+        sForceRedraw = TRUE;
+    }
     if (down & A_BUTTON)
-        Activate(sSaveStep == SAVE_DONE ? HIT_OK : HIT_YES, mode);
+        Activate(sSaveStep == SAVE_DONE ? HIT_OK : (sSaveChoice ? HIT_NO : HIT_YES), mode);
     else if (down & B_BUTTON)
         Activate(sSaveStep == SAVE_DONE ? HIT_OK : HIT_NO, mode);
     /* Done or declined, the screen goes back to the map: so does the focus,
@@ -7020,6 +7042,43 @@ static void SaveKeys(u8 mode, u16 down)
         sInside = INSIDE_NONE;
         sFocus = sScreen;
     }
+}
+
+static void CardKeys(u8 mode, u16 down)
+{
+    (void)mode;
+    if (down & B_BUTTON)
+    {
+        sInside = INSIDE_NONE;
+        sFocus = SCR_CARD;
+        PlaySE(SE_SELECT);
+    }
+    else if (down & A_BUTTON)
+    {
+        sCardBack = !sCardBack;
+        PlaySE(SE_SELECT);
+    }
+}
+
+static void MapKeys(u8 mode, u16 down)
+{
+    (void)mode;
+    if (down & B_BUTTON)
+    {
+        sInside = INSIDE_NONE;
+        sFocus = SCR_MAP;
+        PlaySE(SE_SELECT);
+    }
+    else if (down & DPAD_UP)
+        MapMovePick(0, -1);
+    else if (down & DPAD_DOWN)
+        MapMovePick(0, 1);
+    else if (down & DPAD_LEFT)
+        MapMovePick(-1, 0);
+    else if (down & DPAD_RIGHT)
+        MapMovePick(1, 0);
+    else if (down & A_BUTTON)
+        MapTap(HIT_MAP_ZOOM);
 }
 
 static void ProcessKeys(u8 mode)
@@ -7048,7 +7107,10 @@ static void ProcessKeys(u8 mode)
         return;
     }
     /* A tap took the screen elsewhere. */
-    if ((sInside == INSIDE_OPTIONS && sScreen != SCR_OPTION) || (sInside == INSIDE_SAVE && sScreen != SCR_SAVE))
+    if ((sInside == INSIDE_OPTIONS && sScreen != SCR_OPTION)
+     || (sInside == INSIDE_SAVE && sScreen != SCR_SAVE)
+     || (sInside == INSIDE_MAP && sScreen != SCR_MAP)
+     || (sInside == INSIDE_CARD && sScreen != SCR_CARD))
     {
         sInside = INSIDE_NONE;
         sFocus = sScreen;
@@ -7063,16 +7125,51 @@ static void ProcessKeys(u8 mode)
         }
         else if (sInside == INSIDE_OPTIONS)
             OptionKeys(down);
-        else
+        else if (sInside == INSIDE_SAVE)
             SaveKeys(mode, down);
+        else if (sInside == INSIDE_MAP)
+            MapKeys(mode, down);
+        else
+            CardKeys(mode, down);
         return;
     }
     if (sFocus == FOCUS_NONE)
     {
-        /* Not in the middle of a script or a field effect. */
-        if (!x || (mode == MODE_FIELD && (gMain.callback2 != CB2_Overworld || ArePlayerFieldControlsLocked()
-                                          || ScriptContext_IsEnabled())))
+        /* X opens the bottom screen even during a conversation; the screens
+         * that need an idle field still wait for one when chosen. */
+        if (!x || (mode == MODE_FIELD && gMain.callback2 != CB2_Overworld))
             return;
+        if (mode == MODE_FIELD && sScreen == SCR_OPTION)
+        {
+            sInside = INSIDE_OPTIONS;
+            sOptLevel = 0;
+            sOptFocus = 0xFF;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
+        if (mode == MODE_FIELD && sScreen == SCR_SAVE)
+        {
+            sInside = INSIDE_SAVE;
+            sSaveChoice = 0;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
+        if (mode == MODE_FIELD && sScreen == SCR_MAP)
+        {
+            sInside = INSIDE_MAP;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
+        if (mode == MODE_FIELD && sScreen == SCR_CARD)
+        {
+            sInside = INSIDE_CARD;
+            sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+            return;
+        }
         sFocus = sShown.screen < SCR_COUNT && ColumnItemAvailable(sShown.screen) ? sShown.screen : SCR_MAP;
         PlaySE(SE_SELECT);
         return;
@@ -7648,6 +7745,33 @@ void CtrBottom_Frame(void)
     sFrames = frames;
     sClassicMenus = CtrExtras_Get("classic_menus") == 1;
     mode = CurrentMode();
+    if (mode >= MODE_BATTLE_INFO)
+    {
+        const CtrInput *in = CtrInput_Get();
+        bool8 turn = CtrBattleMenu_Active() && (sAsk.kind != ASK_NONE || sAsked.kind != ASK_NONE);
+
+        if (CtrVideo_SingleScreen() && (in->physicalDown & CTR_KEY_X))
+        {
+            bool8 shown = sBattlePanel || (turn && !sBattlePanelOff);
+
+            sBattlePanel = !shown;
+            sBattlePanelOff = shown;
+        }
+        /* B closes the panel from the battle menu's main screen. */
+        if (mode == MODE_BATTLE_ACTION && (in->physicalDown & B_BUTTON))
+        {
+            sBattlePanel = FALSE;
+            sBattlePanelOff = TRUE;
+        }
+    }
+    else
+    {
+        sBattlePanel = FALSE;
+        sBattlePanelOff = FALSE;
+    }
+    /* A new turn's menu shows itself again after B hid the last one. */
+    if (sAsk.kind == ASK_NONE && sAsked.kind == ASK_NONE)
+        sBattlePanelOff = FALSE;
     /* Away from the action menu its labels may give way: looked at again. */
     if (mode != MODE_BATTLE_ACTION)
         sQuickWarmBall = ITEM_NONE;
@@ -7860,10 +7984,16 @@ void CtrBottom_Frame(void)
 
 bool CtrBottom_PanelShown(void)
 {
+    bool battleTurn;
+
     if (!CtrVideo_SingleScreen() || !sInGame)
         return false;
-    return sFocus != FOCUS_NONE || sInside != INSIDE_NONE || sMapFly || sSession.active || CtrVideo_BottomInUse()
-        || CtrVideo_BottomWhole();
+    /* NEW shows the 3DS battle menu by itself on the player's turn; X shows
+     * it at any other time in battle. */
+    battleTurn = CtrBattleMenu_Active() && !sBattlePanelOff
+              && (sAsk.kind != ASK_NONE || sAsked.kind != ASK_NONE);
+    return sFocus != FOCUS_NONE || sInside != INSIDE_NONE || sMapFly || sSession.active || sBattlePanel
+        || battleTurn || CtrVideo_BottomInUse() || CtrVideo_BottomWhole();
 }
 
 bool CtrBottom_Vanilla(void)

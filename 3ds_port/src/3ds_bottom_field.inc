@@ -525,6 +525,36 @@ static void PickMapCell(int x, int y)
         MapZoomTo(cx, cy, PickPanelWidth(mapsec, sPickPos));
 }
 
+/* The map cursor moved a cell from the D-pad. */
+static void MapMovePick(int dx, int dy)
+{
+    int cx, cy;
+    u16 mapsec;
+
+    if (sPickMapsec == MAPSEC_NONE)
+    {
+        u8 x, y;
+
+        sPickMapsec = PlayerRegionPosition(&x, &y);
+        if (sPickMapsec == MAPSEC_NONE)
+            return;
+        sPickX = x;
+        sPickY = y;
+    }
+    cx = (int)sPickX + dx;
+    cy = (int)sPickY + dy;
+    mapsec = GetRegionMapSecIdAt(cx, cy);
+    if (mapsec == MAPSEC_NONE)
+        return;
+    sPickMapsec = mapsec;
+    sPickX = (u8)cx;
+    sPickY = (u8)cy;
+    sPickPos = CtrRegionMap_PosWithinMapSec(cx, cy, mapsec);
+    if (sMapZoom)
+        MapZoomTo(cx, cy, PickPanelWidth(mapsec, sPickPos));
+    PlaySE(SE_SELECT);
+}
+
 /* The wild list, where the map is: a cream plate, the method's title bar
  * with the page of how many, then a row a species - its icon, its name
  * ("???" not seen yet), its levels and its chance. */
@@ -828,10 +858,21 @@ static void SaveButton(int x, int w, int y, int h, const u8 *label, Rgb colour, 
                        const ViewState *s)
 {
     bool8 pressed = enabled && s->pressed == id;
+    bool8 focused = enabled && sInside == INSIDE_SAVE && sSaveStep != SAVE_DONE
+                 && sSaveChoice == (id == HIT_YES ? 0 : 1);
     int oy = Plate(x, y, w, h, !enabled ? sOffGrey : pressed ? sEmerald : colour,
                    pressed ? PLATE_STATE_PRESSED : PLATE_STATE_NORMAL);
 
     TextIn(label, x, oy, w, h, &sNormal, 'c', STYLE_WHITE, 4);
+    if (focused)
+    {
+        u16 c = sStyle[STYLE_WHITE].fg;
+
+        FillRect(x + 1, y, w - 2, 1, c);
+        FillRect(x + 1, y + h - 1, w - 2, 1, c);
+        FillRect(x, y + 1, 1, h - 2, c);
+        FillRect(x + w - 1, y + 1, 1, h - 2, c);
+    }
     if (enabled)
         AddHit(x, y, w, h, id);
 }
