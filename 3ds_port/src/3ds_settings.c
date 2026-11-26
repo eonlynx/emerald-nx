@@ -19,8 +19,8 @@
 /* Written first, then put in the file's place (WriteText). */
 #define SETTINGS_TEMP "settings.txt.tmp"
 
-/* The voxel overworld is opt-in: the classic 2D field is the default. */
-static bool sVoxel = false;
+/* VOXEL 3D is the default; the classic 2D field is one Y press away. */
+static bool sVoxel = true;
 
 /*
  * The voxel camera: a few degrees either way of its 40 degree pitch, and a
@@ -61,6 +61,9 @@ static bool sRunAlways = false;
  * speed=1, speed=1.5, speed=2 ... */
 static const int sSpeeds[] = {2, 3, 4, 6, 8};
 static int sSpeed = 0;
+/* settings.txt from before the new defaults (VOXEL 3D on, NEW battle menu)
+ * is migrated once; the marker then keeps explicit choices. */
+static bool sSettingsRev;
 /* The MAX SPEED choices' halves; 0 is OFF. */
 static const int sHoldSpeeds[] = {0, 3, 4, 6, 8};
 
@@ -114,7 +117,7 @@ static int Find(const int *values, int count, int value, int fallback)
  */
 void CtrSettings_Defaults(void)
 {
-    sVoxel = false;
+    sVoxel = true;
     sPitch = 2;
     sZoom = 1;
     sBlur = COUNT(sBlurs) - 1;
@@ -125,6 +128,7 @@ void CtrSettings_Defaults(void)
     sShowFps = false;
     sRunAlways = false;
     sSpeed = 0;
+    sSettingsRev = false;
     sExtraCount = 0;
 }
 
@@ -133,7 +137,9 @@ void CtrSettings_ApplyLine(const char *line)
 {
     int value;
 
-    if (strncmp(line, "voxel=", 6) == 0)
+    if (strncmp(line, "settings_rev=", 13) == 0)
+        sSettingsRev = true;
+    else if (strncmp(line, "voxel=", 6) == 0)
         sVoxel = line[6] == '1';
     else if (sscanf(line, "voxel_pitch=%d", &value) == 1)
         sPitch = Find(sPitches, COUNT(sPitches), value, sPitch);
@@ -180,12 +186,19 @@ void CtrSettings_Load(void)
         file = CtrFs_OpenData(SETTINGS_TEMP, "r");
     if (file == NULL)
     {
-        CtrLog_Write(CTR_LOG_FS, "settings: none yet, defaults (voxel=0 fps=0)");
+        CtrLog_Write(CTR_LOG_FS, "settings: none yet, defaults (voxel=1 fps=0)");
         return;
     }
     while (fgets(line, sizeof(line), file))
         CtrSettings_ApplyLine(line);
     fclose(file);
+    if (!sSettingsRev)
+    {
+        /* The old file had VOXEL 3D off and CLASSIC by default. */
+        sVoxel = true;
+        sBattleMenu = 1;
+        sSettingsRev = true;
+    }
     CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d pitch=%d zoom=%d blur=%d battle3d=%d speedshow=%d hold=%d menu=%d "
                  "fps=%d run=%d speed=%d%s",
                  sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
@@ -267,7 +280,7 @@ void CtrSettings_Freeze(void)
 int CtrSettings_Text(char *text, unsigned size)
 {
     int used = snprintf(text, size,
-             "voxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
+             "settings_rev=2\nvoxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
              "hold_speed=%d\nbattle_menu=%d\nfps=%d\nrun=%d\nspeed=%d%s\n",
              sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
              sShowSpeed, sHoldSpeed, sBattleMenu, sShowFps ? 1 : 0, sRunAlways ? 1 : 0,

@@ -4236,6 +4236,15 @@ static void DrawCached(int pid, u8 state, u32 stamp, int ax, int ay, u8 tintBase
     Comp *c = &sComps[pid][look];
     const BtaElem *e = &sBta.e[tintBase + state];
 
+    /* The single-screen panel has no room to lose a frame to the cache:
+     * draw the battle plates directly, labels and all. */
+    if (CtrVideo_SingleScreen() && s->mode >= MODE_BATTLE_INFO)
+    {
+        body(s, arg);
+        if (hit != HIT_NONE)
+            AddHit(ax, ay, hw, hh, hit);
+        return;
+    }
     if (!e->alpha || !e->w || !e->h)
     {
         body(s, arg);
@@ -4708,6 +4717,10 @@ static bool8 sBattleMenusReady;
 static void WarmBattleMenus(void)
 {
     static ViewState v, vr;
+
+    /* The single-screen panel draws its battle plates directly. */
+    if (CtrVideo_SingleScreen())
+        return;
     uint64_t start;
     float slice;
     u8 battler = GetBattlerAtPosition(B_POSITION_PLAYER_LEFT);
