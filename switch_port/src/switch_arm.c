@@ -11,7 +11,10 @@
 
 uint64_t armGetSystemTick(void) {
     uint64_t tick;
-    __asm__ volatile("mrs %0, cntvct_el0" : "=r"(tick));
+    /* libnx uses the physical counter; the virtual counter can be disabled
+     * for user mode on Horizon.  This is the same instruction libnx's
+     * armGetSystemTick emits. */
+    __asm__ volatile("mrs %0, cntpct_el0" : "=r"(tick));
     return tick;
 }
 

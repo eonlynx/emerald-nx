@@ -38,10 +38,11 @@ in the same tree and keep building.
   `emerald-nx.log`. Startup
   breadcrumbs go to `boot.log` through the FS service, so they exist before
   `emerald-nx.log` can be opened.
-- Timing/threads: Switch reads `armGetSystemTick` directly (19.2 MHz), as
-  smbr-nx does, instead of converting `clock_gettime` nanoseconds; the audout
-  feeder is a libnx `threadCreate` thread. Neither depends on newlib pthread
-  state during early boot.
+- Timing/threads: Switch reads `armGetSystemTick` directly (19.2 MHz) from
+  the physical counter (`CNTPCT_EL0`), which is the instruction libnx uses;
+  the virtual counter can be disabled for user mode. The audout feeder is a
+  libnx `threadCreate` thread. Neither depends on newlib pthread state during
+  early boot.
 - Options: BATTLE SPEED with AUTO follows the engine's setting, and the MAP
   can show progressive visited-town markers or the classic display.
   Cherry-picked from Proginji2000's branches; no story or event changes.
