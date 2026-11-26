@@ -18,9 +18,10 @@ in the same tree and keep building.
   present instead of being destroyed and recreated, and `eglSwapBuffers`
   failures, shader link errors and screen program/VAO uniforms are logged.
   The screen quad uses an explicit four-vertex VBO instead of a
-  `gl_VertexID`-only empty VAO, which Mesa on NV120 does not rasterize.
-  Switch input calls `padConfigureInput` before `padInitializeDefault`, as
-  smbr-nx does. Missing first-run settings/save/clock files no longer log as
+  `gl_VertexID`-only empty VAO, which Mesa on NV120 does not rasterize. The
+  Switch draw uses the NWindow's 1280x720/1920x1080 size when
+  `eglQuerySurface` reports 0x0, so `glViewport` is never empty. Switch input
+  calls `padConfigureInput` before `padInitializeDefault`, as smbr-nx does. Missing first-run settings/save/clock files no longer log as
   errors, and error paths show the translated `sdmc:/switch/emerald-nx/`
   path instead of the shared code's 3DS path.
 - Audio: libnx `audout` at 48 kHz through the shared mixer and a

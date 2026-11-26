@@ -2071,8 +2071,20 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
     if (sSurf[screen] == EGL_NO_SURFACE)
         return;
     eglMakeCurrent(sDpy, sSurf[screen], sSurf[screen], sCtx);
+#ifdef __SWITCH__
+    /* switch-mesa can report a 0x0 window surface before the first buffer;
+     * the NWindow dimensions are authoritative. */
+    w = sNxWidth;
+    h = sNxHeight;
+    if (w <= 0 || h <= 0)
+    {
+        w = 1280;
+        h = 720;
+    }
+#else
     eglQuerySurface(sDpy, sSurf[screen], EGL_WIDTH, &w);
     eglQuerySurface(sDpy, sSurf[screen], EGL_HEIGHT, &h);
+#endif
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
@@ -2118,6 +2130,42 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
         glUseProgram(sProgram);
         glBindVertexArray(sVao);
         SolidRect(w, h, 64, 0, 128, 64, 0, 1, 0, 1);
+        {
+            static int sDiag;
+            if (sDiag < 2)
+            {
+                GLint vp[4] = {0}, sc[4] = {0}, prog = 0, vao = 0, discard = 0;
+                GLfloat rect[4] = {0}, colour[4] = {0};
+                GLint rotate = -1;
+                GLboolean scissor = 0, blend = 0, depth = 0, cull = 0;
+                unsigned char red[4] = {0}, green[4] = {0};
+                glGetIntegerv(GL_VIEWPORT, vp);
+                glGetIntegerv(GL_SCISSOR_BOX, sc);
+                glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+                glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+                glGetIntegerv(GL_RASTERIZER_DISCARD, &discard);
+                glGetBooleanv(GL_SCISSOR_TEST, &scissor);
+                glGetBooleanv(GL_BLEND, &blend);
+                glGetBooleanv(GL_DEPTH_TEST, &depth);
+                glGetBooleanv(GL_CULL_FACE, &cull);
+                glGetUniformfv(sProgram, sURect, rect);
+                glGetUniformfv(sProgram, sUColor, colour);
+                glGetUniformiv(sProgram, sURotate, &rotate);
+                glReadPixels(32, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, red);
+                glReadPixels(64, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, green);
+                CtrLog_Write(CTR_LOG_VIDEO,
+                             "diag view=%d,%d,%d,%d scissor=%d,%d,%d,%d on=%d "
+                             "prog=%d vao=%d discard=%d blend=%d depth=%d cull=%d "
+                             "rect=%.2f,%.2f,%.2f,%.2f colour=%.2f,%.2f,%.2f,%.2f rot=%d "
+                             "red=%u,%u,%u green=%u,%u,%u err=0x%x",
+                             vp[0], vp[1], vp[2], vp[3], sc[0], sc[1], sc[2], sc[3],
+                             scissor, prog, vao, discard, blend, depth, cull,
+                             rect[0], rect[1], rect[2], rect[3],
+                             colour[0], colour[1], colour[2], colour[3], rotate,
+                             red[0], red[1], red[2], green[0], green[1], green[2], glGetError());
+                sDiag++;
+            }
+        }
     }
 #endif
     {
