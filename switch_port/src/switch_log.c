@@ -75,8 +75,9 @@ void CtrLog_Write(CtrLogCategory category, const char *format, ...)
 {
     va_list args;
     unsigned cat = (unsigned)category < sizeof(sTags) / sizeof(sTags[0]) ? (unsigned)category : 6;
-    /* Before CtrLog_Init there is no file and no reason to touch the clock. */
-    const uint64_t ms = sFileOn ? CtrPlatform_Milliseconds() : 0;
+    /* stderr is the log; the physical counter is safe before CtrLog_Init and
+     * makes the lines' times useful. */
+    const uint64_t ms = CtrPlatform_Milliseconds();
     const long used = ftell(stderr);
 
     if (sLogCapped)
