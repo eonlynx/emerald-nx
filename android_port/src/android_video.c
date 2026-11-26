@@ -1683,6 +1683,15 @@ bool CtrVideo_Init(void)
     glAttachShader(sProgram, Shader(GL_VERTEX_SHADER, sVertex));
     glAttachShader(sProgram, Shader(GL_FRAGMENT_SHADER, sFragment));
     glLinkProgram(sProgram);
+    {
+        GLint ok = 0;
+        char log[512] = {0};
+        glGetProgramiv(sProgram, GL_LINK_STATUS, &ok);
+        if (!ok) {
+            glGetProgramInfoLog(sProgram, sizeof(log), NULL, log);
+            CtrLog_Write(CTR_LOG_ERROR, "program link: %s", log);
+        }
+    }
     sURect = glGetUniformLocation(sProgram, "uRect");
     sURotate = glGetUniformLocation(sProgram, "uRotate");
     sUTex = glGetUniformLocation(sProgram, "uTex");
@@ -2093,6 +2102,11 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
         glClearColor(1, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
         glDisable(GL_SCISSOR_TEST);
+        /* Next to it: a solid rect through the game shader; shows whether the
+         * shader/VAO works independently of the GBA texture. */
+        glUseProgram(sProgram);
+        glBindVertexArray(sVao);
+        SolidRect(w, h, 64, 0, 128, 64, 0, 1, 0, 1);
     }
 #endif
     if (!eglSwapBuffers(sDpy, sSurf[screen]))

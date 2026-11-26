@@ -19,6 +19,7 @@ static void ensure_ready(void) {
     if (sReady) {
         return;
     }
+    padConfigureInput(8, HidNpadStyleSet_NpadStandard);
     padInitializeDefault(&sPad);
     hidInitializeTouchScreen();
     sReady = true;

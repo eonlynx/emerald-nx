@@ -16,7 +16,8 @@ in the same tree and keep building.
   ES API and initializes with a window surface (switch-mesa has no pbuffer
   config), as smbr-nx does. The initialized surface is kept for the first
   present instead of being destroyed and recreated, and `eglSwapBuffers`
-  failures are logged.
+  failures and shader link errors are logged. Switch input calls
+  `padConfigureInput` before `padInitializeDefault`, as smbr-nx does.
 - Audio: libnx `audout` at 48 kHz through the shared mixer and a
   phase-continuous linear resampler; released buffers are drained directly.
 - Input: native libnx pad and touch. A/B/X/Y follow their printed letters,
