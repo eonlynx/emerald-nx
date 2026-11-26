@@ -16,6 +16,9 @@ void CtrLog_LastDrain(float *ms, float *agoMs);
 void CtrLog_ShowFatal(const char *reason);
 /* Whether there is a log to write to (debug.txt on the SD card). */
 bool CtrLog_Enabled(void);
+/* Whether the verbose diagnostics (registers, tilemaps, per-frame timings,
+ * asset reads) should be logged.  Off for players; on with debug.txt. */
+bool CtrLog_Verbose(void);
 void CtrLog_Write(CtrLogCategory category, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
 /* Records for perf.bin (beside port.log, same debug.txt condition): copied

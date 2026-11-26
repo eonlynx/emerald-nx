@@ -119,8 +119,14 @@ over GBA-sized storage. The reviewed Switch exceptions are in
 To run a package, unzip it at the SD root and launch
 `sdmc:/switch/emerald-nx/emerald-nx.nro` from hbmenu as a **title takeover**
 (hold **R** while opening a game). Logs are written next to the NRO:
-`loader.log`, `emerald-nx.log` and `port.log`. The complete install and
-controls reference is in the root [README](../README.md); the port's design
+`loader.log` and `emerald-nx.log` (plus `boot.log` during early startup). Every
+launch recreates them; the previous `emerald-nx.log` is kept as
+`emerald-nx-prev.log`, and a run stops writing at 1 MiB, so the SD card holds
+at most 2 MiB of game log. `boot.log` is capped at 4 KiB. Verbose diagnostics
+(display registers, tilemaps, per-frame timings, asset reads) are enabled by
+creating an empty `sdmc:/switch/emerald-nx/debug.txt`; without it the log
+keeps startup steps, errors and one progress line per minute. The complete
+install and controls reference is in the root [README](../README.md); the port's design
 and reference audit are in [switch_port/README.md](../switch_port/README.md)
 and [switch_port/SWITCH_PORT_PLAN.md](../switch_port/SWITCH_PORT_PLAN.md).
 

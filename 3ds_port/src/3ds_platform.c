@@ -136,9 +136,15 @@ extern char *fake_heap_end;
 
 void CtrPlatform_ReportMemory(const char *stage)
 {
-    struct mallinfo info = mallinfo();
-    char *top = sbrk(0);
-    size_t grow = top != (char *)-1 && top < fake_heap_end ? (size_t)(fake_heap_end - top) : 0;
+    struct mallinfo info;
+    char *top;
+    size_t grow;
+
+    if (!CtrLog_Verbose())
+        return;
+    info = mallinfo();
+    top = sbrk(0);
+    grow = top != (char *)-1 && top < fake_heap_end ? (size_t)(fake_heap_end - top) : 0;
 
     CtrLog_Write(CTR_LOG_BOOT, "memory %s: heap used=%u free=%u, linear free=%lu, VRAM free=%lu, "
                  "heap room=%lu KiB (%lu KiB past the arena)",
@@ -531,7 +537,7 @@ void Port_ProfileMark(const char *label)
     float ms = sLast ? (float)((now - sLast) * 1000.0 / SYSCLOCK_ARM11) : 0.0f;
 
     sLast = now;
-    if (ms >= 0.8f && ms < 200.0f && sLogged < 400)
+    if (CtrLog_Verbose() && ms >= 0.8f && ms < 200.0f && sLogged < 400)
     {
         ++sLogged;
         CtrLog_Write(CTR_LOG_VIDEO, "PROF %s %.1f ms", label, ms);
@@ -559,7 +565,8 @@ void Port_ProfBegin(void)
                                      sProf[i].ticks * 1000.0 / SYSCLOCK_ARM11 / sProfFrames);
             sProf[i].ticks = 0;
         }
-        CtrLog_Write(CTR_LOG_VIDEO, "PROF vblank handler (ms/frame):%s", text);
+        if (CtrLog_Verbose())
+            CtrLog_Write(CTR_LOG_VIDEO, "PROF vblank handler (ms/frame):%s", text);
         sProfFrames = 0;
     }
     ++sProfFrames;

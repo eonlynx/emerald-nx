@@ -20,10 +20,16 @@ the album/applet mode.
 - `data/` — the small engine files the engine opens directly (boot marker,
   ABI/build id, asset index, relocation tables and port art).
 - `licences/` — the port's licence and the third-party notices.
-- `loader.log` — written by the loader (created on first run).
-- `emerald-nx.log` — stdout/stderr of the game.
-- `port.log` — the engine's own log (created on first run).
+- `loader.log` — the loader's report, recreated on every launch.
+- `emerald-nx.log` — the game's log, recreated on every launch; the previous
+  run is kept as `emerald-nx-prev.log` and each run stops at 1 MiB.
+- `boot.log` — early-startup breadcrumbs, recreated on every launch.
 - `settings.txt`, `*.sav` — created beside the NRO.
+
+The normal log is small: startup steps, errors and one progress line per
+minute. For a detailed report, create an empty file named `debug.txt` in this
+folder and reproduce the problem; the log then includes the verbose
+diagnostics, still capped at 1 MiB. Delete `debug.txt` when finished.
 
 If you are updating from an older package that used the loose `data/` tree,
 delete that folder before extracting this one; only the 15 engine files are

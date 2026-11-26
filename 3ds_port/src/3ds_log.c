@@ -303,6 +303,13 @@ bool CtrLog_Enabled(void)
     return sFile != NULL;
 }
 
+/* A debug.txt is exactly the condition under which this backend logs at all,
+ * so every diagnostic line that reaches CtrLog_Write is verbose by design. */
+bool CtrLog_Verbose(void)
+{
+    return sFile != NULL;
+}
+
 void CtrLog_Write(CtrLogCategory category, const char *format, ...)
 {
     char message[384];

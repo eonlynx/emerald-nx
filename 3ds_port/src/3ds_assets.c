@@ -525,7 +525,7 @@ static u8 *GetPayload(u32 idx)
         Port_ProfAdd(PORT_PROF_IO, (uint32_t)start);
         /* The game waited for this one: worth knowing which, on hardware.
          * Capped, so a run of them cannot flood the log. */
-        if (sDemandLogged < 96)
+        if (CtrLog_Verbose() && sDemandLogged < 96)
         {
             ++sDemandLogged;
             CtrLog_Write(CTR_LOG_FS, "asset read on demand: %s (%lu B, %.2f ms)", GetAssetPathByIndex(idx),

@@ -138,10 +138,21 @@ Download the latest `emerald-nx.zip` from the repository's
 
 3. The game writes:
 
-   - `sdmc:/switch/emerald-nx/loader.log` — the loader's image/heap/syscall log.
-   - `sdmc:/switch/emerald-nx/emerald-nx.log` — stdout/stderr of the game.
-   - `sdmc:/switch/emerald-nx/port.log` — the engine's own log.
+   - `sdmc:/switch/emerald-nx/loader.log` — the loader's image/heap/syscall
+     log, recreated on every launch.
+   - `sdmc:/switch/emerald-nx/emerald-nx.log` — the game's log, recreated on
+     every launch. The previous run is kept as `emerald-nx-prev.log`, and a
+     run stops writing at 1 MiB, so the two files together never exceed
+     2 MiB.
+   - `sdmc:/switch/emerald-nx/boot.log` — a few early-startup breadcrumbs,
+     recreated on every launch (capped at 4 KiB).
    - `sdmc:/switch/emerald-nx/settings.txt` and `*.sav` — settings and saves.
+
+   By default the log keeps startup steps, errors and one progress line per
+   minute. To diagnose a problem, create an empty file named
+   `sdmc:/switch/emerald-nx/debug.txt`: the next launch adds the verbose
+   diagnostics (display registers, tilemaps, per-frame timings and asset
+   reads), still under the 1 MiB cap. Delete it afterwards.
 
 4. If the screen stays black, read `loader.log` first. It reports the low image
    base, the heap range and any `svcMapProcessCodeMemory` /
@@ -347,7 +358,8 @@ Open an issue on this repository with:
 
 - the console model and firmware,
 - whether the app was launched as a title takeover,
-- the newest `loader.log` and `port.log`,
+- the newest `loader.log` and `emerald-nx.log` (and `boot.log` if it exists);
+  add `debug.txt` before reproducing if the problem needs the verbose log,
 - the exact steps and the first visible error.
 
 Please report Emerald NX problems here, not to the Emerald 3DS or Android

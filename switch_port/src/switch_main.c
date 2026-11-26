@@ -21,7 +21,10 @@
 /* stderr may not exist yet when the game starts; write a breadcrumb through
  * the FS service, as Dusklight's exit trace does, so the last reached stage
  * is readable even if stdio never opens. */
+#define BOOT_LOG_MAX 4096
+
 static void early_log(const char *line) {
+    static bool boot_log_started;
     FsFileSystem fs;
     FsFile file;
     s64 size = 0;
@@ -32,10 +35,18 @@ static void early_log(const char *line) {
     }
     fsFsCreateDirectory(&fs, "/switch");
     fsFsCreateDirectory(&fs, "/switch/emerald-nx");
-    fsFsCreateFile(&fs, path, 0, 0);
+    /* boot.log is only the breadcrumb of this launch: recreate it on the first
+     * line, so repeated launches cannot grow it. */
+    if (!boot_log_started) {
+        boot_log_started = true;
+        fsFsDeleteFile(&fs, path);
+        fsFsCreateFile(&fs, path, 0, 0);
+    }
     if (R_SUCCEEDED(fsFsOpenFile(&fs, path, FsOpenMode_Write | FsOpenMode_Append, &file))) {
         fsFileGetSize(&file, &size);
-        fsFileWrite(&file, size, line, strlen(line), FsWriteOption_Flush);
+        if (size + (s64)strlen(line) <= BOOT_LOG_MAX) {
+            fsFileWrite(&file, size, line, strlen(line), FsWriteOption_Flush);
+        }
         fsFileClose(&file);
     }
     fsFsClose(&fs);
@@ -54,10 +65,15 @@ int main(int argc, char **argv) {
     mkdir(APP_DIR, 0777);
     mkdir(APP_DIR "/data", 0777);
 
+    /* One rotation per launch: the previous run stays available for support,
+     * and the current log is capped in switch_log.c. */
+    remove(APP_DIR "/emerald-nx-prev.log");
+    rename(LOG_PATH, APP_DIR "/emerald-nx-prev.log");
     if (freopen(LOG_PATH, "w", stderr)) {
         setvbuf(stderr, NULL, _IOLBF, 0);
         early_log("Emerald NX: emerald-nx.log opened\n");
     }
+    fprintf(stderr, "Emerald NX: log capped at 1 MiB, previous run at emerald-nx-prev.log\n");
     fprintf(stderr, "Emerald NX: starting (applet %d)\n", appletGetAppletType());
     fflush(stderr);
 

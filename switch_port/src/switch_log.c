@@ -1,7 +1,10 @@
 /*
- * The port's log on Android: every line to logcat (tag "Emerald"), and, as on
- * the 3DS, to sdmc:/3ds/emerald3ds/port.log when debug.txt exists there. The
- * file is written by its own thread so the game never waits on storage.
+ * The port's log on Switch: stderr, redirected by switch_main.c to
+ * sdmc:/switch/emerald-nx/emerald-nx.log.  Each launch starts a fresh file and
+ * keeps the previous run as emerald-nx-prev.log; a run is capped at 1 MiB and
+ * then stops writing.  Verbose diagnostics (registers, tilemaps, per-frame
+ * timings, asset reads) are off unless sdmc:/switch/emerald-nx/debug.txt
+ * exists.
  */
 #include <pthread.h>
 #include <stdarg.h>
@@ -15,15 +18,22 @@
 #include "3ds_platform.h"
 
 #define LOG_DIR "sdmc:/3ds/emerald3ds/"
+#define APP_DIR "sdmc:/switch/emerald-nx"
 #define RING_BYTES (256u << 10)
+/* A run never writes more than this to emerald-nx.log.  Together with the one
+ * rotated previous log, the port can use at most 2 MiB of the SD card. */
+#define LOG_MAX_BYTES (1024u * 1024u)
 
 static const char *const sTags[] = { "BOOT", "VIDEO", "INPUT", "FS", "AUDIO", "GAME", "ERROR" };
 static pthread_mutex_t sLock = PTHREAD_MUTEX_INITIALIZER;
 static bool sFileOn;
+static bool sVerbose;
+static bool sLogCapped;
 static FILE *sFile;
 static char sFatal[256];
 
 bool CtrLog_Enabled(void) { return sFileOn; }
+bool CtrLog_Verbose(void) { return sVerbose; }
 
 void CtrLog_LastDrain(float *ms, float *agoMs)
 {
@@ -33,19 +43,20 @@ void CtrLog_LastDrain(float *ms, float *agoMs)
 
 void CtrLog_Init(void)
 {
+    struct stat st;
+
     fprintf(stderr, "Emerald NX: log init (mkdir)\n");
     fflush(stderr);
     mkdir("sdmc:/3ds", 0777);
     mkdir("sdmc:/3ds/emerald3ds", 0777);
-    fprintf(stderr, "Emerald NX: log init (open)\n");
-    fflush(stderr);
-    rename(LOG_DIR "port.log", LOG_DIR "port-prev.log");
-    sFile = fopen(LOG_DIR "port.log", "w");
-    /* stderr is already emerald-nx.log: the second file and its pthread
-     * mutex are not needed during bring-up.  Keep the file handle only for
-     * CtrLog_Close to release. */
+    /* stderr is already redirected to emerald-nx.log by switch_main; a
+     * second port.log file and its pthread writer are not needed. */
+    sFile = NULL;
     sFileOn = false;
-    fprintf(stderr, "Emerald NX: log started (stderr only)\n");
+    sVerbose = stat(APP_DIR "/debug.txt", &st) == 0;
+    sLogCapped = false;
+    fprintf(stderr, "Emerald NX: log started (stderr only, verbose %s)\n",
+            sVerbose ? "on (debug.txt)" : "off");
     fflush(stderr);
 }
 
@@ -66,6 +77,19 @@ void CtrLog_Write(CtrLogCategory category, const char *format, ...)
     unsigned cat = (unsigned)category < sizeof(sTags) / sizeof(sTags[0]) ? (unsigned)category : 6;
     /* Before CtrLog_Init there is no file and no reason to touch the clock. */
     const uint64_t ms = sFileOn ? CtrPlatform_Milliseconds() : 0;
+    const long used = ftell(stderr);
+
+    if (sLogCapped)
+        return;
+    if (used >= (long)LOG_MAX_BYTES)
+    {
+        sLogCapped = true;
+        fprintf(stderr,
+                "Emerald NX: log limit reached (%u KiB); further output is suppressed for this run\n",
+                LOG_MAX_BYTES >> 10);
+        fflush(stderr);
+        return;
+    }
 
     fprintf(stderr, "[%6llu.%03llu] [%s] ", (unsigned long long)(ms / 1000),
             (unsigned long long)(ms % 1000), sTags[cat]);

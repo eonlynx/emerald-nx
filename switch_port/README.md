@@ -93,10 +93,16 @@ structures laid over GBA-sized storage. The reviewed Switch exceptions are in
    launch it from the album/applet mode; the loader needs the code-memory
    syscalls and a process handle.
 3. The game writes:
-   - `sdmc:/switch/emerald-nx/loader.log`
-   - `sdmc:/switch/emerald-nx/emerald-nx.log`
-   - `sdmc:/switch/emerald-nx/port.log`
+   - `sdmc:/switch/emerald-nx/loader.log` (recreated each launch)
+   - `sdmc:/switch/emerald-nx/emerald-nx.log` (recreated each launch; the
+     previous run is kept as `emerald-nx-prev.log`; each run stops at 1 MiB)
+   - `boot.log` (early breadcrumbs, recreated each launch)
    - saves and `settings.txt` in the same folder.
+
+   The default log is small: startup steps, errors and one progress line per
+   minute. Create an empty `sdmc:/switch/emerald-nx/debug.txt` to enable the
+   verbose diagnostics (registers, tilemaps, timings, asset reads) for the
+   next launch; the 1 MiB cap still applies.
 
 If the screen stays black, read `loader.log` first: it reports the low image
 address, the heap range, and any `svcMapProcessCodeMemory` /

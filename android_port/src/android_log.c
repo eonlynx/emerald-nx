@@ -29,6 +29,9 @@ static FILE *sFile;
 static char sFatal[256];
 
 bool CtrLog_Enabled(void) { return sFileOn; }
+/* logcat is the Android log and is always available; the file beside the
+ * debug.txt marker is the part that must stay quiet for players. */
+bool CtrLog_Verbose(void) { return true; }
 
 void CtrLog_LastDrain(float *ms, float *agoMs)
 {

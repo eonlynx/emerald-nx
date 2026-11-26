@@ -1307,7 +1307,7 @@ void CtrGame_WaitFrame(void)
     CtrPlatform_EndFrame();
     /* What the frame just shown was decides the game's next fade step. */
     HoldFieldFade();
-    if (sFrames < 4)
+    if (sFrames < 4 && CtrLog_Verbose())
     {
         CtrPlatform_ReportMemory("after present");
         CtrLog_Write(CTR_LOG_VIDEO, "DISPCNT=%04x BG0=%04x BG1=%04x BG2=%04x BG3=%04x",
@@ -1399,29 +1399,32 @@ void CtrGame_WaitFrame(void)
     {
         const struct CtrAssetStats *stats = CtrAssets_GetStats();
 
-        /* Every ten seconds, the heap's room too: what the caches may still take. */
+        /* Once a minute, the heap's room too: what the caches may still take. */
         if (sFrames >= nextReport)
             CtrPlatform_ReportMemory("now");
         lastCallback = gMain.callback2;
-        nextReport = sFrames + 600;
-        CtrLog_Write(CTR_LOG_VIDEO, "DISPCNT=%04x BG0=%04x BG1=%04x BG2=%04x BG3=%04x",
-                     GetGpuReg(REG_OFFSET_DISPCNT), GetGpuReg(REG_OFFSET_BG0CNT),
-                     GetGpuReg(REG_OFFSET_BG1CNT), GetGpuReg(REG_OFFSET_BG2CNT),
-                     GetGpuReg(REG_OFFSET_BG3CNT));
-        ReportTilemapFill();
+        nextReport = sFrames + 3600;
+        if (CtrLog_Verbose())
         {
-            /* What the renderer actually reads: the applied register bank, not
-             * the buffered value the game wrote. */
-            const u16 *applied = (const u16 *)REG_BASE;
-            CtrLog_Write(CTR_LOG_VIDEO, "applied BG0=%04x BG1=%04x BG2=%04x BG3=%04x "
-                         "HOFS=%u/%u/%u/%u VOFS=%u/%u/%u/%u",
-                         applied[0x08 / 2], applied[0x0a / 2], applied[0x0c / 2], applied[0x0e / 2],
-                         applied[0x10 / 2], applied[0x14 / 2], applied[0x18 / 2], applied[0x1c / 2],
-                         applied[0x12 / 2], applied[0x16 / 2], applied[0x1a / 2], applied[0x1e / 2]);
-            CtrLog_Write(CTR_LOG_VIDEO, "WIN0H=%04x WIN1H=%04x WIN0V=%04x WIN1V=%04x "
-                         "WININ=%04x WINOUT=%04x",
-                         applied[0x40 / 2], applied[0x42 / 2], applied[0x44 / 2],
-                         applied[0x46 / 2], applied[0x48 / 2], applied[0x4a / 2]);
+            CtrLog_Write(CTR_LOG_VIDEO, "DISPCNT=%04x BG0=%04x BG1=%04x BG2=%04x BG3=%04x",
+                         GetGpuReg(REG_OFFSET_DISPCNT), GetGpuReg(REG_OFFSET_BG0CNT),
+                         GetGpuReg(REG_OFFSET_BG1CNT), GetGpuReg(REG_OFFSET_BG2CNT),
+                         GetGpuReg(REG_OFFSET_BG3CNT));
+            ReportTilemapFill();
+            {
+                /* What the renderer actually reads: the applied register bank, not
+                 * the buffered value the game wrote. */
+                const u16 *applied = (const u16 *)REG_BASE;
+                CtrLog_Write(CTR_LOG_VIDEO, "applied BG0=%04x BG1=%04x BG2=%04x BG3=%04x "
+                             "HOFS=%u/%u/%u/%u VOFS=%u/%u/%u/%u",
+                             applied[0x08 / 2], applied[0x0a / 2], applied[0x0c / 2], applied[0x0e / 2],
+                             applied[0x10 / 2], applied[0x14 / 2], applied[0x18 / 2], applied[0x1c / 2],
+                             applied[0x12 / 2], applied[0x16 / 2], applied[0x1a / 2], applied[0x1e / 2]);
+                CtrLog_Write(CTR_LOG_VIDEO, "WIN0H=%04x WIN1H=%04x WIN0V=%04x WIN1V=%04x "
+                             "WININ=%04x WINOUT=%04x",
+                             applied[0x40 / 2], applied[0x42 / 2], applied[0x44 / 2],
+                             applied[0x46 / 2], applied[0x48 / 2], applied[0x4a / 2]);
+            }
         }
         /* The save blocks exist only once the game has allocated them. Until
          * then gSaveBlock1Ptr is null, and reading through it faults on
