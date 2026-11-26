@@ -2439,6 +2439,9 @@ static u8 sSaveChoice;
 /* Leaving the focus, the buttons stay the bottom screen's until let go:
  * the B or A that left it must not reach the game. */
 static bool8 sSwallow;
+/* B on a game screen in the panel: the first press returns the focus to the
+ * dock, the next one is handed to the game so it can close the screen. */
+static bool8 sNativeBFocus, sNativeBPass;
 static u32 sFrames;
 
 static bool8 RectsMeet(int ax0, int ay0, int ax1, int ay1, int bx0, int by0, int bx1, int by1);
@@ -6894,6 +6897,8 @@ static u8 ProcessTouch(u8 mode)
  * buttons themselves, and X inside them brings the focus back to the dock
  * to go somewhere else.
  */
+static bool8 NativeBackToDock(void);
+
 uint16_t CtrBottom_FilterKeys(uint16_t held)
 {
     /* The soft reset's chord reaches the game whatever has the buttons
@@ -6901,11 +6906,47 @@ uint16_t CtrBottom_FilterKeys(uint16_t held)
      * forbids the reset (a link save). */
     if ((held & CTR_SOFT_RESET_KEYS) == CTR_SOFT_RESET_KEYS && !gSoftResetDisabled)
         return sFocus != FOCUS_NONE || sInside != INSIDE_NONE || sSwallow ? CTR_SOFT_RESET_KEYS : held;
+    if (sNativeBPass && (sFocus != FOCUS_NONE || sInside != INSIDE_NONE || !NativeBackToDock()))
+        sNativeBPass = FALSE;
+    /* The second B after the dock has the focus closes the game's screen. */
+    if (sNativeBPass && (held & B_BUTTON))
+    {
+        sNativeBPass = FALSE;
+        return held;
+    }
+    if (sFocus == FOCUS_NONE && sInside == INSIDE_NONE && !sSwallow && !sMapFly
+        && CtrVideo_SingleScreen() && (held & B_BUTTON) && NativeBackToDock())
+    {
+        sFocus = sShown.screen < SCR_COUNT ? sShown.screen : SCR_BAG;
+        sSwallow = TRUE;
+        sNativeBFocus = TRUE;
+        PlaySE(SE_SELECT);
+        return 0;
+    }
     return sFocus != FOCUS_NONE || sInside != INSIDE_NONE || sSwallow || sMapFly ? 0 : held;
 }
 
 /* Whether the dock is on screen: not in battle, not under the boxes or the
  * bag or party menu that a battle, a shop or the PC opens. */
+/* A game screen's main list takes B back to the dock, as OPTIONS does; its
+ * submenus keep B for themselves (cancel, quantity, a question). */
+static bool8 NativeBackToDock(void)
+{
+    if (!sShown.native)
+        return FALSE;
+    switch (sShown.native)
+    {
+    case NATIVE_BAG:
+        return sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST;
+    case NATIVE_PARTY:
+        return sShown.pv.state == CTR_PARTY_VIEW_LIST;
+    case NATIVE_DEX:
+    case NATIVE_SUMMARY:
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static bool8 ColumnShown(u8 mode)
 {
     if (gMain.inBattle)
@@ -7056,7 +7097,15 @@ static void SaveKeys(u8 mode, u16 down)
     if (down & A_BUTTON)
         Activate(sSaveStep == SAVE_DONE ? HIT_OK : (sSaveChoice ? HIT_NO : HIT_YES), mode);
     else if (down & B_BUTTON)
-        Activate(sSaveStep == SAVE_DONE ? HIT_OK : HIT_NO, mode);
+    {
+        /* B backs out to the dock but keeps SAVE selected, as the other
+         * screens do; it does not jump to MAP. */
+        sInside = INSIDE_NONE;
+        sScreen = SCR_SAVE;
+        sFocus = SCR_SAVE;
+        PlaySE(SE_SELECT);
+        return;
+    }
     /* Done or declined, the screen goes back to the map: so does the focus,
      * to the dock. */
     if (sScreen != SCR_SAVE)
@@ -7134,6 +7183,13 @@ static void ProcessKeys(u8 mode)
 {
     const CtrInput *in = CtrInput_Get();
     u16 down = in->down;
+
+    /* The B that put the dock in focus is not a dock command too. */
+    if (sNativeBFocus)
+    {
+        sNativeBFocus = FALSE;
+        down &= ~B_BUTTON;
+    }
     /* Without a second screen START is X: it opens the bottom screen's
      * window with the buttons in it (CtrBottom_PanelShown), and closes it. */
     bool8 x = (in->physicalDown & CTR_KEY_X) != 0
@@ -7229,7 +7285,16 @@ static void ProcessKeys(u8 mode)
         sFocus = sFocus >= SCR_COUNT && HeaderFocus() != FOCUS_NONE ? HeaderFocus() : SCR_MAP;
     if (x || (down & B_BUTTON))
     {
-        LeaveFocus();
+        if (!x && NativeBackToDock())
+        {
+            /* The next B is the game's: close the screen, not the panel. */
+            sFocus = FOCUS_NONE;
+            sInside = INSIDE_NONE;
+            sSwallow = FALSE;
+            sNativeBPass = TRUE;
+        }
+        else
+            LeaveFocus();
         PlaySE(SE_SELECT);
     }
     else if (down & DPAD_LEFT)
