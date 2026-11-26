@@ -1902,7 +1902,7 @@ static void QueuePageCopy(BuildingPageSlot *slot, uint16_t *source, unsigned cou
                         (u32 *)((uint16_t *)slot->tex.data + slot->loaded), 0,
                         count * sizeof(uint16_t), 8);
     slot->loaded += count;
-    if (slot->loaded == slot->w * slot->h)
+    if (slot->loaded == slot->w * slot->h && CtrLog_Verbose())
         CtrLog_Write(CTR_LOG_VIDEO, "VOXEL building page %d loaded (%ux%u) in %.0f ms",
                      slot->page, slot->w, slot->h, MsSince(slot->requested));
 }
@@ -1915,7 +1915,7 @@ static void QueueGlowCopy(BuildingPageSlot *slot, void *source, unsigned count)
     C3D_SyncTextureCopy((u32 *)source, 0, (u32 *)((uint8_t *)slot->glow.data + slot->glowLoaded), 0,
                         count, 8);
     slot->glowLoaded += count;
-    if (slot->glowLoaded == slot->w * slot->h)
+    if (slot->glowLoaded == slot->w * slot->h && CtrLog_Verbose())
         CtrLog_Write(CTR_LOG_VIDEO, "VOXEL building page %d windows loaded (%ux%u L8) in %.0f ms",
                      slot->page, slot->w, slot->h, MsSince(slot->requested));
 }
@@ -5792,6 +5792,13 @@ static void LogParts(void)
 {
     if (++sPartFrames < VOXEL_PARTS_FRAMES)
         return;
+    if (!CtrLog_Verbose())
+    {
+        memset(sPartTicks, 0, sizeof(sPartTicks));
+        memset(sPartWorst, 0, sizeof(sPartWorst));
+        sPartFrames = 0;
+        return;
+    }
     CtrLog_Write(CTR_LOG_VIDEO, "VOXEL world parts (ms mean/worst): instances %.2f/%.2f check %.2f/%.2f "
                  "sun %.2f/%.2f place %.2f/%.2f crossing %.2f/%.2f (%u maps)",
                  TicksMs(sPartTicks[PART_INSTANCES]) / sPartFrames, TicksMs(sPartWorst[PART_INSTANCES]),
