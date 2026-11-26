@@ -2452,8 +2452,10 @@ static u8 sPickMapsec = MAPSEC_NONE, sPickX, sPickY, sPickPos;
 static bool8 sMapZoom, sMapFly;
 static u8 sFlySlot, sFlyFrom;
 static s16 sMapViewX, sMapViewY;
-/* With the buttons: MAP's big frame, or the zoom lens's. */
+/* With the buttons: 0 the map's big frame, 1 the zoom lens's; sMapMoving is
+ * set by A on the map, and only then do the directions move its cursor. */
 static u8 sMapFocus;
+static bool8 sMapMoving;
 /* Map extras: the wild list instead of the map, its page; the load
  * (CtrClockStore_LoadSerial) whose clock banner was dismissed. */
 static bool8 sEncView;
@@ -7032,7 +7034,10 @@ static void ChooseColumnItem(u8 mode, u8 item)
         if (item == SCR_SAVE)
             sSaveChoice = 0;
         if (item == SCR_MAP)
+        {
             sMapFocus = 0;
+            sMapMoving = FALSE;
+        }
     }
 }
 
@@ -7080,47 +7085,49 @@ static void CardKeys(u8 mode, u16 down)
 static void MapKeys(u8 mode, u16 down)
 {
     (void)mode;
-    if (down & B_BUTTON)
+    if (sMapMoving)
     {
-        if (sMapFocus != 0)
+        /* A picked the map: now the directions walk its cursor. */
+        if (down & (A_BUTTON | B_BUTTON))
         {
-            sMapFocus = 0;
+            sMapMoving = FALSE;
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
-            return;
         }
+        else if (down & DPAD_UP)
+            MapMovePick(0, -1);
+        else if (down & DPAD_DOWN)
+            MapMovePick(0, 1);
+        else if (down & DPAD_LEFT)
+            MapMovePick(-1, 0);
+        else if (down & DPAD_RIGHT)
+            MapMovePick(1, 0);
+        return;
+    }
+    if (down & B_BUTTON)
+    {
         sInside = INSIDE_NONE;
         sFocus = SCR_MAP;
         PlaySE(SE_SELECT);
         return;
     }
-    if (sMapFocus != 0)
+    /* Choosing: the directions switch the red frame between the map and the
+     * zoom lens; A uses the chosen one. */
+    if (down & (DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT))
     {
-        /* The zoom lens: A presses it; any direction goes back to the map. */
-        if (down & A_BUTTON)
-            MapTap(HIT_MAP_ZOOM);
-        else if (down & (DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT))
-        {
-            sMapFocus = 0;
-            sForceRedraw = TRUE;
-            PlaySE(SE_SELECT);
-        }
-        return;
-    }
-    if (down & A_BUTTON)
-    {
-        sMapFocus = 1;
+        sMapFocus ^= 1;
         sForceRedraw = TRUE;
         PlaySE(SE_SELECT);
     }
-    else if (down & DPAD_UP)
-        MapMovePick(0, -1);
-    else if (down & DPAD_DOWN)
-        MapMovePick(0, 1);
-    else if (down & DPAD_LEFT)
-        MapMovePick(-1, 0);
-    else if (down & DPAD_RIGHT)
-        MapMovePick(1, 0);
+    else if (down & A_BUTTON)
+    {
+        if (sMapFocus == 0)
+            sMapMoving = TRUE;
+        else
+            MapTap(HIT_MAP_ZOOM);
+        sForceRedraw = TRUE;
+        PlaySE(SE_SELECT);
+    }
 }
 
 static void ProcessKeys(u8 mode)
@@ -7202,6 +7209,7 @@ static void ProcessKeys(u8 mode)
         {
             sInside = INSIDE_MAP;
             sMapFocus = 0;
+            sMapMoving = FALSE;
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
             return;
