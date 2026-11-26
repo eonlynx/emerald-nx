@@ -39,7 +39,9 @@ in the same tree and keep building.
   voxel world off. Above 1x fast-forward, the 2D field composites every other
   scanline and stretches it to the same full-size picture: the extra game
   frames no longer starve the software compositor. At 1x every line is drawn
-  as before.
+  as before. The battle scene starts at full detail and drops to every other
+  scanline only after two consecutive renders take more than 12 ms, staying
+  there until the battle ends; the text box always keeps every line.
 - Lifecycle: `appletMainLoop` and an `appletHook` handle HOME, exit, focus
   loss and return; audio pauses while the HOME menu or sleep owns the screen,
   and frame clocks reset on return.

@@ -132,6 +132,12 @@ static unsigned sLine;
  * field is software-composited and at 4x it cannot also afford four game
  * frames per shown frame at full vertical detail.  1 = normal. */
 static int sRowStep = 1;
+/* The battle's scene is heavier than the field (zoom, more layers and
+ * effects).  It starts at full detail and drops to every other scanline if
+ * two consecutive renders miss the frame budget; it stays there until the
+ * battle ends, so the detail does not flicker. */
+static int sBattleStep = 1;
+static unsigned sBattleSlow;
 static inline uint16_t LReg(unsigned offset)
 {
     if (sLineRegCount && sLine < sLineRegCount && offset >= CTR_LINE_REG_FIRST
@@ -2380,9 +2386,21 @@ static void HiResSurfaces(void)
     EGLint w = 0, h = 0;
     float scale = 4.5f;
 
+#ifdef __SWITCH__
+    /* switch-mesa can report 0x0 before the first buffer; the NWindow size is
+     * authoritative, as in DrawScreen.  Without this the stage and battle
+     * composites were built for 1944x1080 even on the 1280x720 display. */
+    w = sNxWidth;
+    h = sNxHeight;
+#else
+    if (sSurf[0] != EGL_NO_SURFACE)
+    {
+        eglQuerySurface(sDpy, sSurf[0], EGL_WIDTH, &w);
+        eglQuerySurface(sDpy, sSurf[0], EGL_HEIGHT, &h);
+    }
+#endif
     /* As many picture pixels as the picture covers on the display. */
-    if (sSurf[0] != EGL_NO_SURFACE && eglQuerySurface(sDpy, sSurf[0], EGL_WIDTH, &w)
-        && eglQuerySurface(sDpy, sSurf[0], EGL_HEIGHT, &h) && w > 0 && h > 0)
+    if (w > 0 && h > 0)
     {
         int x, y, vw, vh;
 
@@ -3473,6 +3491,11 @@ static void ComposeBattleWorld(void)
 /* The battle's view, GBA (-BATTLE_MARGIN_X, -BATTLE_MARGIN_Y) on, into sTop. */
 static void BattleRender(void)
 {
+    const bool fast = AndroidPlatform_FastForward();
+    const int outerStep = sRowStep;
+    uint64_t start = CtrPlatform_Ticks();
+    float ms;
+
     sBattleSliding = CtrBattleIntro_Sliding() != 0;
     for (unsigned bg = 0; bg < 4; ++bg)
         sBattlePicture[bg] = BattlePictureLayer(bg);
@@ -3481,14 +3504,35 @@ static void BattleRender(void)
     sBattleScene = true;
     sOrgX = -BATTLE_MARGIN_X;
     sOrgY = -BATTLE_MARGIN_Y;
+    sRowStep = fast ? 2 : sBattleStep;
     RenderPicture(BATTLE_VIEW_W, BATTLE_VIEW_H, 0, 0);
     sBattleScene = false;
-    /* ... and the GBA's text box band, lines 112-160, under it in sTop. */
+    /* ... and the GBA's text box band, lines 112-160, under it in sTop.
+     * Text keeps every line: it is what the player reads. */
+    sRowStep = 1;
     sOrgX = 0;
     sOrgY = BATTLE_BAND_TOP;
     RenderPicture(GBA_W, GBA_H - BATTLE_BAND_TOP, 0, BATTLE_VIEW_H);
     sBattleWide = false;
     sOrgX = sOrgY = 0;
+    sRowStep = outerStep;
+
+    /* Judge the full-detail scene only; at fast-forward it is already halved. */
+    ms = CtrPlatform_TickMs(CtrPlatform_Ticks() - start);
+    if (!fast)
+    {
+        if (ms > 12.0f)
+        {
+            if (++sBattleSlow >= 2 && sBattleStep != 2)
+            {
+                sBattleStep = 2;
+                if (CtrLog_Verbose())
+                    CtrLog_Write(CTR_LOG_VIDEO, "battle compositor: %.1f ms, every other scanline", ms);
+            }
+        }
+        else
+            sBattleSlow = 0;
+    }
 }
 
 /*
@@ -3997,6 +4041,8 @@ void CtrVideo_Present(void)
     uint64_t frameStart = svcGetSystemTick();
     /* Above 1x the CPU compositor gives up half the rows to keep the speed. */
     sRowStep = AndroidPlatform_FastForward() ? 2 : 1;
+    if (!sBattle)
+        sBattleStep = 1, sBattleSlow = 0;
     bool voxel = false, blank = false, composed = false, battleWorld = false, battle2d = false, stage = false;
     float fade2d = 0.0f;
     GLuint topTex = sTopTex;
