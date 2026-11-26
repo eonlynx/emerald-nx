@@ -14,7 +14,9 @@ in the same tree and keep building.
   the surface recreated when the console changes mode. The GBA picture and
   the bottom-screen panel use the shared Android renderer. Switch binds the
   ES API and initializes with a window surface (switch-mesa has no pbuffer
-  config), as smbr-nx does.
+  config), as smbr-nx does. The initialized surface is kept for the first
+  present instead of being destroyed and recreated, and `eglSwapBuffers`
+  failures are logged.
 - Audio: libnx `audout` at 48 kHz through the shared mixer and a
   phase-continuous linear resampler; released buffers are drained directly.
 - Input: native libnx pad and touch. A/B/X/Y follow their printed letters,

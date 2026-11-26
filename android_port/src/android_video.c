@@ -1556,6 +1556,9 @@ static EGLConfig sCfg;
 static EGLContext sCtx = EGL_NO_CONTEXT;
 static EGLSurface sPbuf = EGL_NO_SURFACE;
 static EGLSurface sSurf[HOST_SCREENS] = { EGL_NO_SURFACE, EGL_NO_SURFACE };
+#ifdef __SWITCH__
+static int sNxWidth, sNxHeight;
+#endif
 static ANativeWindow *sWin[HOST_SCREENS];
 static uint32_t sWinGen[HOST_SCREENS];
 static GLuint sProgram, sTopTex, sBottomTex, sVao;
@@ -1659,6 +1662,9 @@ bool CtrVideo_Init(void)
         CtrLog_Write(CTR_LOG_ERROR, "EGL Switch surface/context failed: 0x%x", eglGetError());
         return false;
     }
+    sNxWidth = 1280;
+    sNxHeight = 720;
+    eglSwapInterval(sDpy, 1);
 #else
     if (!eglChooseConfig(sDpy, attr, &sCfg, 1, &n) || n < 1) {
         CtrLog_Write(CTR_LOG_ERROR, "EGL choose config failed: 0x%x", eglGetError());
@@ -1710,7 +1716,6 @@ static void SyncWindows(void)
 {
 #ifdef __SWITCH__
     static NWindow *sNxWindow;
-    static int sNxWidth, sNxHeight;
     const int width = appletGetOperationMode() == AppletOperationMode_Console ? 1920 : 1280;
     const int height = appletGetOperationMode() == AppletOperationMode_Console ? 1080 : 720;
 
@@ -1725,11 +1730,17 @@ static void SyncWindows(void)
     sNxWindow = nwindowGetDefault();
     nwindowSetDimensions(sNxWindow, width, height);
     sSurf[0] = eglCreateWindowSurface(sDpy, sCfg, (EGLNativeWindowType)sNxWindow, NULL);
-    if (sSurf[0] != EGL_NO_SURFACE)
+    if (sSurf[0] == EGL_NO_SURFACE)
     {
-        eglMakeCurrent(sDpy, sSurf[0], sSurf[0], sCtx);
-        eglSwapInterval(sDpy, 0);
+        CtrLog_Write(CTR_LOG_ERROR, "Switch window surface failed: 0x%x", eglGetError());
+        return;
     }
+    if (!eglMakeCurrent(sDpy, sSurf[0], sSurf[0], sCtx))
+    {
+        CtrLog_Write(CTR_LOG_ERROR, "Switch window make-current failed: 0x%x", eglGetError());
+        return;
+    }
+    eglSwapInterval(sDpy, 1);
     sNxWidth = width;
     sNxHeight = height;
     sBottomDirty = true;
@@ -2073,7 +2084,13 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
     if (screen == HOST_SCREEN_TOP && CtrSettings_ShowFps())
         DrawFps(w, h, (float)x, (float)y, (float)vh / (float)ph);
 #endif
-    eglSwapBuffers(sDpy, sSurf[screen]);
+    if (!eglSwapBuffers(sDpy, sSurf[screen]))
+    {
+        static int sSwapErrors;
+        if (sSwapErrors++ < 4)
+            CtrLog_Write(CTR_LOG_ERROR, "eglSwapBuffers(%d, %dx%d) failed: 0x%x",
+                         screen, (int)w, (int)h, eglGetError());
+    }
 }
 
 /* The composited top screen, sampled down for capture_top.rgba: its own
