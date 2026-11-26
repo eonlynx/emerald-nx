@@ -48,6 +48,8 @@ CPPFLAGS := -DPORTABLE -DPLATFORM_3DS -DPLATFORM_SWITCH -D__SWITCH__ -Iinclude \
 	-I$(DEVKITPRO)/portlibs/switch/include -I$(DEVKITPRO)/libnx/include
 CFLAGS := $(ARCH) -O2 -g -std=gnu99 -fPIE -ffunction-sections -fdata-sections -Wall -Wextra
 NATIVE_CFLAGS := $(CFLAGS)
+# The classic 2D field is the CPU software compositor; give it the optimiser.
+build/switch/android_video.o: NATIVE_CFLAGS += -O3
 GAMECFLAGS := $(CFLAGS) -fsigned-char -fno-strict-aliasing -w
 GAMECFLAGS += -Wno-error=incompatible-pointer-types -Wno-error=int-conversion \
 	-Wno-error=implicit-function-declaration -Wno-error=implicit-int \

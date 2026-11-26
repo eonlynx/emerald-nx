@@ -154,7 +154,11 @@ bool CtrPlatform_Init(void)
     fprintf(stderr, "platform: input cleared\n");
     fflush(stderr);
     sFrames = 0;
+    fprintf(stderr, "platform: before clock\n");
+    fflush(stderr);
     sLastFrame = CtrPlatform_Milliseconds();
+    fprintf(stderr, "platform: after clock\n");
+    fflush(stderr);
     fprintf(stderr, "platform: first log\n");
     fflush(stderr);
     CtrLog_Write(CTR_LOG_BOOT, "Android platform, files at %s", AndroidHost_FilesDir());
@@ -193,8 +197,11 @@ void CtrPlatform_SetHooks(const CtrPlatformHooks *hooks)
 
 void CtrPlatform_ReportMemory(const char *stage)
 {
-    struct mallinfo info = mallinfo();
+    struct mallinfo info;
 
+    if (!CtrLog_Verbose())
+        return;
+    info = mallinfo();
     CtrLog_Write(CTR_LOG_BOOT, "memory %s: heap used=%u KiB, arena=%u KiB", stage,
                  (unsigned)(info.uordblks >> 10), (unsigned)(info.arena >> 10));
 }
@@ -445,12 +452,18 @@ static void FastForwardLog(bool shown)
     if (shown && sPresentMs > sFastPresentPeak) sFastPresentPeak = sPresentMs;
     if (now - sFastStart >= 5000)
     {
-        CtrLog_Write(CTR_LOG_VIDEO, "fast-forward x%.1f: %.1f game fps, %u shown, %u early, game %.1f ms "
-                     "(peak %.1f), present peak %.1f ms, reserve %.1f ms",
-                     sSpeedHalves / 2.0f, sFastFrames * 1000.0f / (float)(now - sFastStart), sFastShown, sFastEarly,
-                     sGameAvgMs, sFastGamePeak, sFastPresentPeak, AndroidPlatform_FrameReserveMs());
+        if (CtrLog_Verbose())
+            CtrLog_Write(CTR_LOG_VIDEO, "fast-forward x%.1f: %.1f game fps, %u shown, %u early, game %.1f ms "
+                         "(peak %.1f), present peak %.1f ms, reserve %.1f ms",
+                         sSpeedHalves / 2.0f, sFastFrames * 1000.0f / (float)(now - sFastStart), sFastShown, sFastEarly,
+                         sGameAvgMs, sFastGamePeak, sFastPresentPeak, AndroidPlatform_FrameReserveMs());
         sFastStart = 0;
     }
+}
+
+bool AndroidPlatform_FastForward(void)
+{
+    return sSpeedHalves >= 4 && !sPacedFrame;
 }
 
 float AndroidPlatform_FrameReserveMs(void)
@@ -554,7 +567,7 @@ void Port_ProfileMark(const char *label)
     float ms = sLast ? (float)((now - sLast) * 1000.0 / SYSCLOCK_ARM11) : 0.0f;
 
     sLast = now;
-    if (ms >= 0.8f && ms < 200.0f && sLogged < 400)
+    if (CtrLog_Verbose() && ms >= 0.8f && ms < 200.0f && sLogged < 400)
     {
         ++sLogged;
         CtrLog_Write(CTR_LOG_VIDEO, "PROF %s %.1f ms", label, ms);
@@ -579,7 +592,8 @@ void Port_ProfBegin(void)
                                      sProf[i].ticks * 1000.0 / SYSCLOCK_ARM11 / sProfFrames);
             sProf[i].ticks = 0;
         }
-        CtrLog_Write(CTR_LOG_VIDEO, "PROF vblank handler (ms/frame):%s", text);
+        if (CtrLog_Verbose())
+            CtrLog_Write(CTR_LOG_VIDEO, "PROF vblank handler (ms/frame):%s", text);
         sProfFrames = 0;
     }
     ++sProfFrames;

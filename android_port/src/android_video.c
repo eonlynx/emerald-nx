@@ -128,6 +128,10 @@ static inline uint16_t Pal(unsigned index) { return sMem.palette[index] & 0x7FFF
 
 /* A per-line register (HBlank DMA effects), or the latched one. */
 static unsigned sLine;
+/* Fast-forward renders every sRowStep-th line and copies it down: the 2D
+ * field is software-composited and at 4x it cannot also afford four game
+ * frames per shown frame at full vertical detail.  1 = normal. */
+static int sRowStep = 1;
 static inline uint16_t LReg(unsigned offset)
 {
     if (sLineRegCount && sLine < sLineRegCount && offset >= CTR_LINE_REG_FIRST
@@ -949,7 +953,7 @@ static void RenderPicture(int width, int height, int ox, int oy)
         sAffX[i] = CtrVideo_AffineReference(rx);
         sAffY[i] = CtrVideo_AffineReference(ry);
     }
-    for (int y = 0; y < height; y++)
+    for (int y = 0; y < height; y += sRowStep)
     {
         uint32_t *row = sOut + (size_t)(oy + y) * TOP_W + ox;
         int gy = y + (sWide ? sOrgY : 0);
@@ -960,6 +964,8 @@ static void RenderPicture(int width, int height, int ox, int oy)
         {
             for (int x = 0; x < width; x++)
                 row[x] = 0xFFFFFFFFu;
+            for (int k = 1; k < sRowStep && y + k < height; k++)
+                memcpy(row + (size_t)k * TOP_W, row, (size_t)width * sizeof(uint32_t));
             continue;
         }
         bool bgOn[4] = { false, false, false, false };
@@ -1055,10 +1061,13 @@ static void RenderPicture(int width, int height, int ox, int oy)
             else
                 row[x] = ToRGBA(out);
         }
+        /* Fast-forward: the skipped rows take this row's pixels. */
+        for (int k = 1; k < sRowStep && y + k < height; k++)
+            memcpy(row + (size_t)k * TOP_W, row, (size_t)width * sizeof(uint32_t));
         for (int i = 0; i < 2 && gy >= 0; i++)
         {
-            sAffX[i] += (int16_t)LReg(0x22 + 16 * i);
-            sAffY[i] += (int16_t)LReg(0x26 + 16 * i);
+            sAffX[i] += (int16_t)LReg(0x22 + 16 * i) * sRowStep;
+            sAffY[i] += (int16_t)LReg(0x26 + 16 * i) * sRowStep;
         }
     }
 }
@@ -1624,9 +1633,28 @@ static GLuint Texture(int w, int h, GLenum internal, GLenum format, GLenum type)
 }
 
 static bool sVoxelReady;
+static bool sVoxelTried;
+/* The GL programs and surfaces that the stage, the 2D battle and the voxel
+ * world share are up.  They are cheap and always initialized; the voxel
+ * models themselves are not. */
+static bool sGlReady;
 /* The last picture shown on the top screen came from the composite. */
 static bool sTopComposed;
 static void VoxelGlInit(void);
+static bool GlSurfacesInit(void);
+/* Reset by CtrVideo_Shutdown; defined with the other GL objects below. */
+static C3D_RenderTarget *sLogical;
+static float sRenderScale;
+
+/* The voxel world is opt-in; do not build its 3,049 models and 1944x1080
+ * surfaces when the player is using the classic 2D field. */
+static void EnsureVoxel(void)
+{
+    if (sVoxelReady || sVoxelTried || !CtrSettings_Voxel())
+        return;
+    sVoxelTried = true;
+    VoxelGlInit();
+}
 
 bool CtrVideo_Init(void)
 {
@@ -1707,10 +1735,11 @@ bool CtrVideo_Init(void)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (const void *)0);
     glEnableVertexAttribArray(0);
     sTopTex = Texture(TOP_W, TOP_H, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
-    CtrLog_Write(CTR_LOG_VIDEO, "screen program=%u vao=%u uniforms %d/%d/%d/%d err=0x%x",
-                 sProgram, sVao, sURect, sURotate, sUTex, sUColor, glGetError());
     sBottomTex = Texture(CTR_BOTTOM_HEIGHT, CTR_BOTTOM_WIDTH, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5);
-    VoxelGlInit();
+    /* Full-size stage/centred screens need these even when the voxel world is
+     * off; only the voxel models and streaming are lazy. */
+    GlSurfacesInit();
+    EnsureVoxel();
     clock_gettime(CLOCK_MONOTONIC, &sNextFrame);
     return true;
 }
@@ -1722,6 +1751,10 @@ void CtrVideo_Shutdown(void)
     if (sVoxelReady)
         CtrVoxel_Shutdown();
     sVoxelReady = false;
+    sVoxelTried = false;
+    sGlReady = false;
+    sRenderScale = 0.0f;
+    sLogical = NULL;
     eglMakeCurrent(sDpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     for (int i = 0; i < HOST_SCREENS; i++)
         if (sSurf[i] != EGL_NO_SURFACE)
@@ -2116,58 +2149,6 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
     if (screen == HOST_SCREEN_TOP && CtrSettings_ShowFps())
         DrawFps(w, h, (float)x, (float)y, (float)vh / (float)ph);
 #endif
-#ifdef __SWITCH__
-    /* Presentation probe: a red corner that bypasses the GBA texture. */
-    if (screen == HOST_SCREEN_TOP)
-    {
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(0, 0, 64, 64);
-        glClearColor(1, 0, 0, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_SCISSOR_TEST);
-        /* Next to it: a solid rect through the game shader; shows whether the
-         * shader/VAO works independently of the GBA texture. */
-        glUseProgram(sProgram);
-        glBindVertexArray(sVao);
-        SolidRect(w, h, 64, 0, 128, 64, 0, 1, 0, 1);
-        {
-            static int sDiag;
-            if (sDiag < 2)
-            {
-                GLint vp[4] = {0}, sc[4] = {0}, prog = 0, vao = 0, discard = 0;
-                GLfloat rect[4] = {0}, colour[4] = {0};
-                GLint rotate = -1;
-                GLboolean scissor = 0, blend = 0, depth = 0, cull = 0;
-                unsigned char red[4] = {0}, green[4] = {0};
-                glGetIntegerv(GL_VIEWPORT, vp);
-                glGetIntegerv(GL_SCISSOR_BOX, sc);
-                glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
-                glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
-                glGetIntegerv(GL_RASTERIZER_DISCARD, &discard);
-                glGetBooleanv(GL_SCISSOR_TEST, &scissor);
-                glGetBooleanv(GL_BLEND, &blend);
-                glGetBooleanv(GL_DEPTH_TEST, &depth);
-                glGetBooleanv(GL_CULL_FACE, &cull);
-                glGetUniformfv(sProgram, sURect, rect);
-                glGetUniformfv(sProgram, sUColor, colour);
-                glGetUniformiv(sProgram, sURotate, &rotate);
-                glReadPixels(32, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, red);
-                glReadPixels(64, 32, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, green);
-                CtrLog_Write(CTR_LOG_VIDEO,
-                             "diag view=%d,%d,%d,%d scissor=%d,%d,%d,%d on=%d "
-                             "prog=%d vao=%d discard=%d blend=%d depth=%d cull=%d "
-                             "rect=%.2f,%.2f,%.2f,%.2f colour=%.2f,%.2f,%.2f,%.2f rot=%d "
-                             "red=%u,%u,%u green=%u,%u,%u err=0x%x",
-                             vp[0], vp[1], vp[2], vp[3], sc[0], sc[1], sc[2], sc[3],
-                             scissor, prog, vao, discard, blend, depth, cull,
-                             rect[0], rect[1], rect[2], rect[3],
-                             colour[0], colour[1], colour[2], colour[3], rotate,
-                             red[0], red[1], red[2], green[0], green[1], green[2], glGetError());
-                sDiag++;
-            }
-        }
-    }
-#endif
     {
         static int sDrawErrors;
         const GLenum err = glGetError();
@@ -2318,7 +2299,6 @@ enum { FIELD_MODE_NONE, FIELD_MODE_PIXEL, FIELD_MODE_VOXEL };
 enum { QUAD_TEXTURE, QUAD_THRESHOLD, QUAD_ALPHA, QUAD_SOLID, QUAD_MIX, QUAD_DIAMOND };
 
 static C3D_Tex sSurfaceTex;
-static C3D_RenderTarget *sLogical;
 static GLuint sCompositeFbo, sCompositeTex, sBloomFbo, sBloomTex, sOverlayTex, sField2DTex;
 static GLuint sFlashDarkTex, sFlashPoolTex;
 static GLuint sSamplerNearest, sSamplerLinear;
@@ -2395,8 +2375,6 @@ static void QuadTarget(GLuint fbo, int w, int h) { QuadTargetScaled(fbo, w, h, 1
  * picture's coordinates; the game's own pixel art (the overlay, the 2D field
  * of the swoop) is magnified onto it, sharp.
  */
-static float sRenderScale;
-
 static void HiResSurfaces(void)
 {
     EGLint w = 0, h = 0;
@@ -2553,13 +2531,16 @@ static void MakeFlashLight(void)
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, FLASH_LIGHT_DIM, FLASH_LIGHT_DIM, GL_RGBA, GL_UNSIGNED_BYTE, pool);
 }
 
-/* The GL side of the voxel world, after the context is current. */
-static void VoxelGlInit(void)
+/* The GL programs, textures and surfaces shared by the stage, the 2D battle
+ * and the voxel world.  Idempotent; after the EGL context is current. */
+static bool GlSurfacesInit(void)
 {
+    if (sGlReady)
+        return true;
     if (!AndroidC3D_Init())
     {
-        CtrLog_Write(CTR_LOG_ERROR, "voxel: the Citro3D shim did not start");
-        return;
+        CtrLog_Write(CTR_LOG_ERROR, "video: the Citro3D shim did not start");
+        return false;
     }
     sQuadProg = glCreateProgram();
     glAttachShader(sQuadProg, Shader(GL_VERTEX_SHADER, sQuadVertex));
@@ -2595,9 +2576,19 @@ static void VoxelGlInit(void)
     if (!C3D_TexInitVRAM(&sSurfaceTex, SURFACE_W, SURFACE_H, GPU_RGBA8)
         || (HiResSurfaces(), sLogical == NULL))
     {
-        CtrLog_Write(CTR_LOG_ERROR, "voxel: no logical surface");
-        return;
+        CtrLog_Write(CTR_LOG_ERROR, "video: no logical surface");
+        return false;
     }
+    sGlReady = true;
+    AndroidC3D_ResetState();
+    return true;
+}
+
+/* The voxel world itself: its models, regions and streaming.  Opt-in. */
+static void VoxelGlInit(void)
+{
+    if (!GlSurfacesInit())
+        return;
     sVoxelReady = CtrVoxel_Init();
     AndroidC3D_ResetState();
     CtrLog_Write(CTR_LOG_VIDEO, "voxel world %s", sVoxelReady ? "ready" : "unavailable");
@@ -3721,8 +3712,8 @@ static bool StageLaidOut(void)
      * the same way, its margins filled as the 3DS fills them (sStageFill)
      * or left black - over a battle too, as the party menu opened in one. */
     if (StageCentredFill())
-        return !sTransition && sVoxelReady;
-    return sStage && !sBattle && !sTransition && sVoxelReady;
+        return !sTransition && sGlReady;
+    return sStage && !sBattle && !sTransition && sGlReady;
 }
 
 /* Once a stage frame: which sprites stand still outside the picture. */
@@ -4004,6 +3995,8 @@ void CtrVideo_Present(void)
     static uint32_t sFpsFrames;
 
     uint64_t frameStart = svcGetSystemTick();
+    /* Above 1x the CPU compositor gives up half the rows to keep the speed. */
+    sRowStep = AndroidPlatform_FastForward() ? 2 : 1;
     bool voxel = false, blank = false, composed = false, battleWorld = false, battle2d = false, stage = false;
     float fade2d = 0.0f;
     GLuint topTex = sTopTex;
@@ -4020,6 +4013,7 @@ void CtrVideo_Present(void)
         eglMakeCurrent(sDpy, sSurf[0], sSurf[0], sCtx);
     else if (sSurf[1] != EGL_NO_SURFACE)
         eglMakeCurrent(sDpy, sSurf[1], sSurf[1], sCtx);
+    EnsureVoxel();
     sBottomInUse = sMem.regs && !sStage
                 && (BottomWindowScreen(sCentred) || (!sBottomNative && BottomWholeScreen(sCentred)));
     sWholeShown = sBottomInUse && BottomWholeScreen(sCentred);
@@ -4072,7 +4066,7 @@ void CtrVideo_Present(void)
             sExcludeLayers = 0;
             battleWorld = true;
         }
-        else if (BattleLaidOut() && sVoxelReady)
+        else if (BattleLaidOut() && sGlReady)
         {
             memset(sTop, 0, sizeof(sTop));
             BattleRender();
@@ -4221,19 +4215,22 @@ void CtrVideo_Present(void)
     else if (now - sFpsStart >= 5000)
     {
         sStats.fps = sFpsFrames * 1000.0f / (float)(now - sFpsStart);
-        CtrLog_Write(CTR_LOG_VIDEO, "fps %.1f, game %.1f ms, wait %.1f ms", sStats.fps,
-                     CtrPlatform_GetTiming()->gameMs, sStats.waitMs);
-        LateLog();
-        if (voxel)
+        if (CtrLog_Verbose())
         {
-            const CtrVoxelStats *v = CtrVoxel_GetStats();
-            unsigned draws, bytes, texels;
+            CtrLog_Write(CTR_LOG_VIDEO, "fps %.1f, game %.1f ms, wait %.1f ms", sStats.fps,
+                         CtrPlatform_GetTiming()->gameMs, sStats.waitMs);
+            LateLog();
+            if (voxel)
+            {
+                const CtrVoxelStats *v = CtrVoxel_GetStats();
+                unsigned draws, bytes, texels;
 
-            AndroidC3D_FrameStats(&draws, &bytes, &texels);
-            CtrLog_Write(CTR_LOG_VIDEO, "voxel: %u chunks (%u visible, %u missing), %u vertices, %u draws, "
-                         "%u KiB streamed, update %.1f ms (peak %.1f), mesh %.1f ms",
-                         v->chunks, v->visibleChunks, v->chunksMissing, v->vertices, draws, bytes >> 10,
-                         v->updateMs, v->updatePeakMs, v->meshMs);
+                AndroidC3D_FrameStats(&draws, &bytes, &texels);
+                CtrLog_Write(CTR_LOG_VIDEO, "voxel: %u chunks (%u visible, %u missing), %u vertices, %u draws, "
+                             "%u KiB streamed, update %.1f ms (peak %.1f), mesh %.1f ms",
+                             v->chunks, v->visibleChunks, v->chunksMissing, v->vertices, draws, bytes >> 10,
+                             v->updateMs, v->updatePeakMs, v->meshMs);
+            }
         }
         sFpsStart = now;
         sFpsFrames = 0;
