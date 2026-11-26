@@ -6203,19 +6203,18 @@ static void DoSave(void)
         PlaySE(SE_SAVE);
         if (CtrSettings_GetInt("close_after_save", 0) == 1)
         {
-            size_t n = CtrLocale_ToGame(sSaveMessage, sizeof(sSaveMessage),
-                                        CTR_TEXT("Player saved the game.",
-                                                 "Partida guardada.",
-                                                 "Partie sauvegardée.",
-                                                 "Partita salvata.",
-                                                 "Jogo salvo.",
-                                                 "Spiel gespeichert.",
-                                                 "セーブしました。"));
+            u8 *end;
 
-            if (n + 1 < sizeof(sSaveMessage))
+            /* The game's own line, so the player's name is the one it
+             * expands there, then the question on a new line. */
+            StringExpandPlaceholders(sSaveMessage, gText_PlayerSavedGame);
+            end = sSaveMessage;
+            while (end < sSaveMessage + sizeof(sSaveMessage) && *end != EOS)
+                ++end;
+            if (end + 1 < sSaveMessage + sizeof(sSaveMessage))
             {
-                sSaveMessage[n] = 0xFE;   /* the game's line break */
-                CtrLocale_ToGame(sSaveMessage + n + 1, sizeof(sSaveMessage) - n - 1,
+                *end = 0xFE;   /* the game's line break */
+                CtrLocale_ToGame(end + 1, (size_t)(sSaveMessage + sizeof(sSaveMessage) - end - 1),
                                  CTR_TEXT("Do you want to close the game?",
                                           "¿Quieres cerrar el juego?",
                                           "Fermer le jeu ?",
@@ -6677,7 +6676,7 @@ static void Activate(u8 id, u8 mode)
         {
             /* Saved: YES quits to the launcher, NO asks again. */
             if (id == HIT_YES)
-                CtrPlatform_RequestExit();
+                CtrPlatform_ExitProcess();
             else if (id == HIT_NO)
             {
                 OpenSave();

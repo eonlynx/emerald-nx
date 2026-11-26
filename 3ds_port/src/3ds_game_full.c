@@ -170,7 +170,7 @@ static void WaitForResetKeysUp(void)
         if (!CtrPlatform_BeginFrame())
         {
             CtrPlatform_Shutdown();
-            exit(0);
+            CtrPlatform_ExitProcess();
         }
     }
 }
@@ -1345,7 +1345,7 @@ void CtrGame_WaitFrame(void)
     if (!CtrPlatform_BeginFrame())
     {
         CtrPlatform_Shutdown();
-        exit(0);
+        CtrPlatform_ExitProcess();
     }
     if (CtrScenario_Active())
         ScenarioCheckpoints();

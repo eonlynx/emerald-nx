@@ -35,6 +35,9 @@ bool CtrPlatform_BeginFrame(void);
 void CtrPlatform_EndFrame(void);
 void CtrPlatform_SetHooks(const CtrPlatformHooks *hooks);
 void CtrPlatform_RequestExit(void);
+/* Ends the process the way the launcher expects: a direct process exit on
+ * Switch, not libnx's cleanup path. */
+void CtrPlatform_ExitProcess(void) __attribute__((noreturn));
 void CtrPlatform_Fatal(const char *reason) __attribute__((noreturn));
 void CtrPlatform_ShowDataError(const char *title, const char *detail) __attribute__((noreturn));
 uint64_t CtrPlatform_Milliseconds(void);

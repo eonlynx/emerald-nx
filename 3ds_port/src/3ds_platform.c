@@ -188,6 +188,7 @@ void CtrPlatform_SleepUs(unsigned microseconds)
 }
 
 void CtrPlatform_RequestExit(void) { sExit = true; }
+void CtrPlatform_ExitProcess(void) { exit(0); }
 
 bool CtrPlatform_BeginFrame(void)
 {

@@ -207,6 +207,9 @@ void CtrPlatform_ReportMemory(const char *stage)
 }
 
 void CtrPlatform_RequestExit(void) { sExit = true; }
+#ifndef __SWITCH__
+void CtrPlatform_ExitProcess(void) { exit(0); }
+#endif
 
 /* The activity went to the background: wait for it, then take up the game's
  * clocks as the 3DS's resume hook does. */

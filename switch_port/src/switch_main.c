@@ -18,6 +18,13 @@
 #define APP_DIR "sdmc:/switch/emerald-nx"
 #define LOG_PATH APP_DIR "/emerald-nx.log"
 
+/* The launcher expects the process itself to end; libnx's exit path runs
+ * cleanup that does not match the loader's low mapping and reports an error.
+ * The loader's own return path uses svcExitProcess too. */
+void CtrPlatform_ExitProcess(void) {
+    svcExitProcess();
+}
+
 /* stderr may not exist yet when the game starts; write a breadcrumb through
  * the FS service, as Dusklight's exit trace does, so the last reached stage
  * is readable even if stdio never opens. */
