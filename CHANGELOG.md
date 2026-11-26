@@ -17,6 +17,8 @@ in the same tree and keep building.
   config), as smbr-nx does. The initialized surface is kept for the first
   present instead of being destroyed and recreated, and `eglSwapBuffers`
   failures, shader link errors and screen program/VAO uniforms are logged.
+  The screen quad uses an explicit four-vertex VBO instead of a
+  `gl_VertexID`-only empty VAO, which Mesa on NV120 does not rasterize.
   Switch input calls `padConfigureInput` before `padInitializeDefault`, as
   smbr-nx does.
 - Audio: libnx `audout` at 48 kHz through the shared mixer and a

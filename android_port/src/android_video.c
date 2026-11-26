@@ -1561,7 +1561,7 @@ static int sNxWidth, sNxHeight;
 #endif
 static ANativeWindow *sWin[HOST_SCREENS];
 static uint32_t sWinGen[HOST_SCREENS];
-static GLuint sProgram, sTopTex, sBottomTex, sVao;
+static GLuint sProgram, sTopTex, sBottomTex, sVao, sQuadVbo;
 /* A whole-screen game picture over the bottom canvas (RenderBottomWhole). */
 static GLuint sWholeTex;
 static GLint sURect, sURotate, sUTex, sUColor;
@@ -1569,12 +1569,12 @@ static struct timespec sNextFrame;
 
 static const char *sVertex =
     "#version 300 es\n"
+    "layout(location = 0) in vec2 aPos;\n"
     "uniform vec4 uRect;\n"            /* x0 y0 x1 y1 in clip space */
     "out vec2 vUv;\n"
     "void main() {\n"
-    "  vec2 c = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-    "  vUv = vec2(c.x, 1.0 - c.y);\n"
-    "  gl_Position = vec4(mix(uRect.xy, uRect.zw, c), 0.0, 1.0);\n"
+    "  vUv = vec2(aPos.x, 1.0 - aPos.y);\n"
+    "  gl_Position = vec4(mix(uRect.xy, uRect.zw, aPos), 0.0, 1.0);\n"
     "}\n";
 static const char *sFragment =
     "#version 300 es\n"
@@ -1698,6 +1698,14 @@ bool CtrVideo_Init(void)
     sUColor = glGetUniformLocation(sProgram, "uColor");
     glGenVertexArrays(1, &sVao);
     glBindVertexArray(sVao);
+    /* Mesa on NV120 does not rasterize the old gl_VertexID-only quad with
+     * an empty VAO; give it a real four-vertex strip. */
+    static const float quad[8] = { 0, 0, 1, 0, 0, 1, 1, 1 };
+    glGenBuffers(1, &sQuadVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, sQuadVbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (const void *)0);
+    glEnableVertexAttribArray(0);
     sTopTex = Texture(TOP_W, TOP_H, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
     CtrLog_Write(CTR_LOG_VIDEO, "screen program=%u vao=%u uniforms %d/%d/%d/%d err=0x%x",
                  sProgram, sVao, sURect, sURotate, sUTex, sUColor, glGetError());
