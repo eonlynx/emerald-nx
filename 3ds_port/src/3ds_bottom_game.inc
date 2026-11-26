@@ -410,8 +410,12 @@ static void DrawGameParty(const ViewState *s)
               STYLE_INK, TRUE);
     {
         bool8 pressed = s->pressed == HIT_CANCEL;
+        /* CANCEL is the party list's last entry: the game's cursor on it
+         * lights it emerald as it does a party box. */
+        bool8 selected = v->state == CTR_PARTY_VIEW_LIST && v->cursor == PARTY_SIZE + 1;
 
-        oy = Plate(AREA_X, PARTY_CANCEL_Y, PARTY_LEFT_W, PARTY_CANCEL_H, pressed ? sEmerald : sSlate,
+        oy = Plate(AREA_X, PARTY_CANCEL_Y, PARTY_LEFT_W, PARTY_CANCEL_H,
+                   pressed || selected ? sEmerald : sSlate,
                    pressed ? PLATE_STATE_PRESSED : PLATE_STATE_NORMAL);
         TextIn(gText_Cancel2, AREA_X, oy, PARTY_LEFT_W, PARTY_CANCEL_H, &sNormal, 'c', STYLE_WHITE, 4);
         AddHit(AREA_X, PARTY_CANCEL_Y, PARTY_LEFT_W, PARTY_CANCEL_H, HIT_CANCEL);

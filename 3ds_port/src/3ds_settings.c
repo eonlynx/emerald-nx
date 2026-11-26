@@ -63,16 +63,21 @@ static int sBattleMenu = 0;
  * turned on. */
 static bool sShowFps = false;
 /* Running without holding B (the bottom screen's RUN button; B then walks):
- * off unless turned on. */
+ * on from the start on Switch, where the running shoes turn it on; off on
+ * the other builds unless the player turns it on. */
+#ifdef __SWITCH__
+static bool sRunAlways = true;
+#else
 static bool sRunAlways = false;
+#endif
 /* Fast-forward: game frames per shown frame (3ds_platform.c, FrameShown),
  * in halves so 1.5x fits; 2 is normal speed. settings.txt writes it as
  * speed=1, speed=1.5, speed=2 ... */
 static const int sSpeeds[] = {2, 3, 4, 6, 8};
 static int sSpeed = 0;
-/* settings.txt from before the new defaults (VOXEL 3D on, NEW battle menu)
- * is migrated once; the marker then keeps explicit choices. */
-static bool sSettingsRev;
+/* settings.txt from before the new defaults (VOXEL 3D on, NEW battle menu,
+ * AUTO RUN on) is migrated once; the marker then keeps explicit choices. */
+static int sSettingsRev;
 /* The MAX SPEED choices' halves; 0 is OFF. */
 static const int sHoldSpeeds[] = {0, 3, 4, 6, 8};
 
@@ -143,9 +148,13 @@ void CtrSettings_Defaults(void)
     sBattleMenu = 0;
 #endif
     sShowFps = false;
+#ifdef __SWITCH__
+    sRunAlways = true;
+#else
     sRunAlways = false;
+#endif
     sSpeed = 0;
-    sSettingsRev = false;
+    sSettingsRev = 0;
     sExtraCount = 0;
 }
 
@@ -154,8 +163,8 @@ void CtrSettings_ApplyLine(const char *line)
 {
     int value;
 
-    if (strncmp(line, "settings_rev=", 13) == 0)
-        sSettingsRev = true;
+    if (sscanf(line, "settings_rev=%d", &value) == 1)
+        sSettingsRev = value;
     else if (strncmp(line, "voxel=", 6) == 0)
         sVoxel = line[6] == '1';
     else if (sscanf(line, "voxel_pitch=%d", &value) == 1)
@@ -209,14 +218,21 @@ void CtrSettings_Load(void)
     while (fgets(line, sizeof(line), file))
         CtrSettings_ApplyLine(line);
     fclose(file);
-    if (!sSettingsRev)
+    if (sSettingsRev < 3)
     {
 #ifdef __SWITCH__
-        /* The old Switch file had VOXEL 3D off and CLASSIC by default. */
-        sVoxel = true;
-        sBattleMenu = 1;
+        if (sSettingsRev < 2)
+        {
+            /* The old Switch file had VOXEL 3D off and CLASSIC by default. */
+            sVoxel = true;
+            sBattleMenu = 1;
+        }
+        /* AUTO RUN starts on.  Older files wrote run=0 only because that
+         * was the old default; once this revision is saved, an explicit
+         * OFF is kept. */
+        sRunAlways = true;
 #endif
-        sSettingsRev = true;
+        sSettingsRev = 3;
     }
     CtrLog_Write(CTR_LOG_FS, "settings: voxel=%d pitch=%d zoom=%d blur=%d battle3d=%d speedshow=%d hold=%d menu=%d "
                  "fps=%d run=%d speed=%d%s",
@@ -299,7 +315,7 @@ void CtrSettings_Freeze(void)
 int CtrSettings_Text(char *text, unsigned size)
 {
     int used = snprintf(text, size,
-             "settings_rev=2\nvoxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
+             "settings_rev=3\nvoxel=%d\nvoxel_pitch=%d\nvoxel_zoom=%d\nvoxel_blur=%d\nbattle_3d=%d\nshow_speed=%d\n"
              "hold_speed=%d\nbattle_menu=%d\nfps=%d\nrun=%d\nspeed=%d%s\n",
              sVoxel ? 1 : 0, sPitches[sPitch], sZooms[sZoom], sBlurs[sBlur], sVoxelBattleMode,
              sShowSpeed, sHoldSpeed, sBattleMenu, sShowFps ? 1 : 0, sRunAlways ? 1 : 0,

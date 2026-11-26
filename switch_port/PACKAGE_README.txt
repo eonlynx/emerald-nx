@@ -58,6 +58,10 @@ DAY / NIGHT starts in AUTO. In the bottom panel, UP enters the category on
 show at its last item, and DOWN from that last item returns to the category;
 the NUZLOCKE tracker also takes the D-pad and A.
 
+RUN (the shoe in the header) starts ON once you have the running shoes, so
+you run without holding B; turn it off there to walk again (B still runs).
+The POKEMON party list lights CANCEL emerald when it is selected.
+
 In GENERAL > SYSTEM, SHOW SPEED (OFF/AUTO/ON) puts the current speed under the
 FPS counter, and HOLD SPEED (OFF/1.5x/2x/3x/4x) chooses the MAX SPEED.
 CLOSE AFTER SAVE (OFF/ON) asks whether to close the game after saving and

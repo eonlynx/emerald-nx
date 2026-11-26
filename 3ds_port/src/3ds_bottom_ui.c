@@ -7047,7 +7047,7 @@ static bool8 NativeListAtEnd(void)
             && sShown.dx.selected + 1 >= sShown.dx.count;
     case NATIVE_PARTY:
         /* PARTY_SIZE + 1 is the party menu's CANCEL, its last entry. */
-        return sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
+        return !sNativeStale && sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
             && sShown.pv.cursor >= PARTY_SIZE + 1;
     }
     return FALSE;
@@ -7326,7 +7326,7 @@ static bool8 NativeListAtStart(void)
     case NATIVE_DEX:
         return sShown.dx.state == CTR_DEX_VIEW_LIST && sShown.dx.selected == 0;
     case NATIVE_PARTY:
-        return sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
+        return !sNativeStale && sShown.bagView == BAG_VIEW_SECTION && sShown.pv.state == CTR_PARTY_VIEW_LIST
             && sShown.pv.cursor == 0;
     }
     return FALSE;
@@ -7469,6 +7469,21 @@ static void ChooseColumnItem(u8 mode, u8 item)
             sMapMoving = FALSE;
         }
     }
+}
+
+/* UP from the dock's POKEMON: the party menu's cursor on CANCEL, its last
+ * entry, then the game's buttons back. Only once its list is drawn: leaving
+ * the focus while the menu was still coming in kept the cursor on the first
+ * slot, so the next UP left for the header's RUN without entering the
+ * party. */
+static bool8 PartyEnterLast(void)
+{
+    static struct CtrPartyView view;
+
+    if (sNativeStale || sShown.native != NATIVE_PARTY || sShown.pv.state != CTR_PARTY_VIEW_LIST)
+        return FALSE;
+    CtrParty_SelectLast();
+    return CtrParty_GetView(&view) && view.state == CTR_PARTY_VIEW_LIST && view.cursor == PARTY_SIZE + 1;
 }
 
 static void SaveKeys(u8 mode, u16 down)
@@ -7806,11 +7821,13 @@ static void ProcessKeys(u8 mode)
         else if (sFocus == SCR_POKEMON && sShown.screen == SCR_POKEMON)
         {
             /* The party menu goes to CANCEL, its last entry; a summary keeps
-             * its page. */
-            if (sShown.native == NATIVE_PARTY)
-                CtrParty_SelectLast();
-            LeaveFocus();
-            PlaySE(SE_SELECT);
+             * its page. Without its list drawn there is no party to enter:
+             * the focus stays here for the next press. */
+            if (PartyEnterLast())
+            {
+                LeaveFocus();
+                PlaySE(SE_SELECT);
+            }
         }
         else if (sFocus == SCR_POKENAV && sShown.screen == SCR_POKENAV)
         {
