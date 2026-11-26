@@ -28,7 +28,18 @@ in the same tree and keep building.
   phase-continuous linear resampler; released buffers are drained directly.
 - Input: native libnx pad and touch. A/B/X/Y follow their printed letters,
   ZL/ZR control fast-forward and battle speed, and touch is limited to the
-  bottom-screen panel.
+  bottom-screen panel. The analog stick's Y axis is converted from libnx's
+  upward-positive value to the decoder's downward-positive screen
+  coordinates, so pushing up moves the player up.
+- Performance: the voxel world is initialized only when its option is on,
+  instead of building its 3,049 models and high-resolution surfaces for every
+  player; the classic 2D software compositor is compiled with `-O3`. The GL
+  programs and surfaces shared with the stage screens are still created, so
+  the title, intro, menus and 2D battles keep their full-size layout with the
+  voxel world off. Above 1x fast-forward, the 2D field composites every other
+  scanline and stretches it to the same full-size picture: the extra game
+  frames no longer starve the software compositor. At 1x every line is drawn
+  as before.
 - Lifecycle: `appletMainLoop` and an `appletHook` handle HOME, exit, focus
   loss and return; audio pauses while the HOME menu or sleep owns the screen,
   and frame clocks reset on return.
@@ -41,16 +52,16 @@ in the same tree and keep building.
   now closes the services it opened (console, FS, applet, HID, time, setsys
   and SM) and restores its TLS, as nx-hbloader does, so the NRO's libnx can
   initialize its own services before `main`.
-- Logging: Switch writes `port.log` synchronously instead of starting a
-  newlib writer thread, and startup logs each platform step to
-  `emerald-nx.log`. This follows the single-threaded logging in smbr-nx and
-  keeps a failed first boot diagnosable from the SD card. Early lines use
+- Logging: Switch redirects stderr to `emerald-nx.log`, with no separate
+  `port.log` or newlib writer thread, and logs each platform step. Every
+  launch recreates the file and keeps the previous run as
+  `emerald-nx-prev.log`; a run stops at 1 MiB, so the two logs never take
+  more than 2 MiB from the SD card. `boot.log` is recreated each launch and
+  capped at 4 KiB. The normal log keeps startup steps, errors and one progress
+  line per minute; the verbose register, tilemap, per-frame timing and asset
+  read lines require an empty `debug.txt` next to the NRO. Early lines use
   `vfprintf` directly and do not read the clock before `CtrLog_Init`, avoiding
-  a large stack formatting path before the platform is initialized. During
-  bring-up `port.log` is not written separately: stderr is already
-  `emerald-nx.log`. Startup
-  breadcrumbs go to `boot.log` through the FS service, so they exist before
-  `emerald-nx.log` can be opened.
+  a large stack formatting path before the platform is initialized.
 - Timing/threads: Switch reads `armGetSystemTick` directly (19.2 MHz) from
   the physical counter (`CNTPCT_EL0`), which is the instruction libnx uses;
   the virtual counter can be disabled for user mode. The audout feeder is a
