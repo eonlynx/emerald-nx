@@ -49,7 +49,7 @@ static int sShowSpeed = 1;
 static int sHoldSpeed = 4;
 /* BATTLE MENU: 0 CLASSIC (the GBA menu on the top screen), 1 NEW (the 3DS
  * battle menu on the bottom screen). */
-static int sBattleMenu = 0;
+static int sBattleMenu = 1;
 /* The FPS counter in the top screen's corner (3ds_video.c): off unless
  * turned on. */
 static bool sShowFps = false;
@@ -121,7 +121,7 @@ void CtrSettings_Defaults(void)
     sVoxelBattleMode = 1;
     sShowSpeed = 1;
     sHoldSpeed = 4;
-    sBattleMenu = 0;
+    sBattleMenu = 1;
     sShowFps = false;
     sRunAlways = false;
     sSpeed = 0;
