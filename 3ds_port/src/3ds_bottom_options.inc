@@ -705,6 +705,7 @@ static void ShowOptionGroup(u8 cat, u8 group)
     sOptSub = group;
     sOptLevel = 0;
     sOptFocus = 0;
+    sOptBack = OPT_BACK_DOCK;
     PlaySE(SE_SELECT);
 }
 
@@ -849,6 +850,15 @@ static void OptionKeys(u16 down)
             StepCategory((down & DPAD_RIGHT) ? 1 : -1);
             sOptLevel = 2;
         }
+        else if (down & DPAD_UP)
+        {
+            /* The category is on show right under the tab: UP enters it at
+             * its last row, and DOWN from that row comes back here. */
+            sOptLevel = 0;
+            sOptFocus = (u8)OptionLast();
+            sOptBack = OPT_BACK_CATEGORY;
+            PlaySE(SE_SELECT);
+        }
         else if (down & (DPAD_DOWN | A_BUTTON))
         {
             sOptLevel = 1;
@@ -873,6 +883,7 @@ static void OptionKeys(u16 down)
         {
             sOptLevel = 0;
             sOptFocus = (u8)OptionFirst();
+            sOptBack = OPT_BACK_GROUP;
             PlaySE(SE_SELECT);
         }
         return;
@@ -892,8 +903,15 @@ static void OptionKeys(u16 down)
         if (sOptFocus == OptionFirst())
         {
             /* Nothing above the first row: the header's Y/RUN are next. */
-            sInside = INSIDE_NONE;
-            sFocus = HeaderFocus();
+            u8 header = HeaderFocus();
+
+            if (header != FOCUS_NONE)
+            {
+                sInside = INSIDE_NONE;
+                sFocus = header;
+            }
+            else
+                sOptLevel = 2;
             PlaySE(SE_SELECT);
         }
         else if (sOptFocus > 0)
@@ -903,9 +921,17 @@ static void OptionKeys(u16 down)
     {
         if (sOptFocus == OptionLast())
         {
-            /* Past the last row, the dock's categories are next. */
-            sInside = INSIDE_NONE;
-            sFocus = SCR_OPTION;
+            /* Past the last row, back where the rows were entered from: the
+             * dock's category, or the category/group tabs. */
+            if (sOptBack == OPT_BACK_CATEGORY)
+                sOptLevel = 2;
+            else if (sOptBack == OPT_BACK_GROUP)
+                sOptLevel = 1;
+            else
+            {
+                sInside = INSIDE_NONE;
+                sFocus = SCR_OPTION;
+            }
             PlaySE(SE_SELECT);
         }
         else

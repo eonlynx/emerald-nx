@@ -2434,7 +2434,10 @@ static u16 ExtraShownValue(const CtrExtra *extra)
  * a screen. */
 #define FOCUS_NONE 0xFF
 enum { INSIDE_NONE, INSIDE_OPTIONS, INSIDE_SAVE, INSIDE_MAP, INSIDE_CARD };
-static u8 sFocus = FOCUS_NONE, sInside, sOptFocus, sOptLevel;
+/* Where OPTIONS' rows go on DOWN past the last one: back to the dock's
+ * category, or to the group/category tabs the rows were entered from. */
+enum { OPT_BACK_DOCK, OPT_BACK_GROUP, OPT_BACK_CATEGORY };
+static u8 sFocus = FOCUS_NONE, sInside, sOptFocus, sOptLevel, sOptBack;
 static u8 sSaveChoice;
 /* Leaving the focus, the buttons stay the bottom screen's until let go:
  * the B or A that left it must not reach the game. */
@@ -6983,6 +6986,14 @@ static bool8 NativeListAtEnd(void)
     return FALSE;
 }
 
+/* The section's bag list is on show and can take a row from the dock. */
+static bool8 BagListEnterable(void)
+{
+    return sShown.native == NATIVE_BAG && !gMain.inBattle && sShown.screen < SCR_COUNT
+        && sShown.bagView == BAG_VIEW_SECTION && sShown.bv.state == CTR_BAG_VIEW_LIST
+        && sShown.bv.total > 0;
+}
+
 /* UP on the first row of a native list goes to the header's Y/RUN. */
 static bool8 NativeListAtStart(void)
 {
@@ -7121,6 +7132,7 @@ static void ChooseColumnItem(u8 mode, u8 item)
         {
             sOptLevel = 0;
             sOptFocus = 0xFF;   /* the first arrow picks first or last */
+            sOptBack = OPT_BACK_DOCK;
         }
         if (item == SCR_SAVE)
             sSaveChoice = 0;
@@ -7310,6 +7322,7 @@ static void ProcessKeys(u8 mode)
             sInside = INSIDE_OPTIONS;
             sOptLevel = 0;
             sOptFocus = 0xFF;
+            sOptBack = OPT_BACK_DOCK;
             sForceRedraw = TRUE;
             PlaySE(SE_SELECT);
             return;
@@ -7365,13 +7378,21 @@ static void ProcessKeys(u8 mode)
     else if ((down & DPAD_UP) && sFocus < SCR_COUNT)
     {
         /* The category is on show: UP enters it at its last item. */
-        if (sFocus == SCR_OPTION && sScreen == SCR_OPTION)
+        if (sFocus == SCR_OPTION && sShown.screen == SCR_OPTION)
         {
             sInside = INSIDE_OPTIONS;
             sFocus = FOCUS_NONE;
             sOptLevel = 0;
             sOptFocus = (u8)OptionLast();
+            sOptBack = OPT_BACK_DOCK;
             sForceRedraw = TRUE;
+            PlaySE(SE_SELECT);
+        }
+        else if (sFocus == SCR_BAG && sShown.screen == SCR_BAG && BagListEnterable())
+        {
+            /* The bag takes the buttons again, on its last row. */
+            CtrBag_SelectIndex(sShown.bv.total - 1);
+            LeaveFocus();
             PlaySE(SE_SELECT);
         }
         else if (HeaderFocus() != FOCUS_NONE)
@@ -7671,11 +7692,18 @@ void CtrBottom_SoftReset(void)
     sFocus = FOCUS_NONE;
     sInside = INSIDE_NONE;
     sSwallow = FALSE;
+    sNativeBFocus = sNativeBPass = sNativeDownFocus = sNativeUpFocus = FALSE;
+    sBattlePanel = sBattlePanelOff = FALSE;
     sScreen = SCR_MAP;
     sMapZoom = sMapFly = FALSE;
+    sMapFocus = 0;
+    sMapMoving = FALSE;
     sOptPage = CAT_GENERAL;
     sOptSub = 0;
+    sOptLevel = 0;
     sOptFocus = 0;
+    sOptBack = OPT_BACK_DOCK;
+    sSaveChoice = 0;
     sCardBack = FALSE;
     sPickMapsec = MAPSEC_NONE;
     sEncView = FALSE;
