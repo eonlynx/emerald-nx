@@ -47,7 +47,7 @@ u16 Platform_GetKeyInput(void)
     const CtrInput *input = CtrInput_Get();
     u16 held = input->held;
 
-#ifdef __SWITCH__
+#ifdef PLATFORM_SWITCH
     /* On the single-screen Switch port Y is always the 3D/2D switch.
      * SELECT stays the game's own SELECT (the registered item); the battle
      * action menu's quick ball is SELECT there too. */

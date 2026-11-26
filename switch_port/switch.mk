@@ -92,6 +92,8 @@ LDFLAGS_BASE := $(ARCH) -specs=build/switch_release.specs -Wl,--gc-sections \
 	-Wl,-z,notext -Wl,--noinhibit-exec -Wl$(comma)-Map$(comma)build/$(TARGET).map
 LDFLAGS := $(LDFLAGS_BASE)
 LDFLAGS += $(foreach f,$(FS_WRAPPED),-Wl,--wrap=$(f))
+# New games start with stereo sound, the port's preferred default.
+LDFLAGS += -Wl,--wrap=NewGameInitData
 
 .PHONY: FORCE
 build/config: FORCE

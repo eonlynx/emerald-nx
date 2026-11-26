@@ -1295,6 +1295,18 @@ void CtrGame_SpeedSound(int event)
     PlaySE(event == 2 ? SE_SUCCESS : SE_SELECT);
 }
 
+/* New games default to stereo sound (new_game.c's SetDefaultOptions sets
+ * mono); the Switch link wraps it, so existing saves keep their choice. */
+#ifdef PLATFORM_SWITCH
+void __real_NewGameInitData(void);
+void __wrap_NewGameInitData(void)
+{
+    __real_NewGameInitData();
+    if (gSaveBlock2Ptr != NULL)
+        gSaveBlock2Ptr->optionsSound = OPTIONS_SOUND_STEREO;
+}
+#endif
+
 void CtrGame_WaitFrame(void)
 {
     static MainCallback lastCallback;
