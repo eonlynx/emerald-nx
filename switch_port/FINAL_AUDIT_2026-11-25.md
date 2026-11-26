@@ -82,14 +82,14 @@ detached flag and `threadJoin`/`threadFree` do not match libnx's
 
 - Switch: full AArch64 build, NRO, data bundles, single-file pack and package
   pass. Link check accepts only the expected `R_AARCH64_ABS32` sites in
-  `.gamedata`. Final build id `c61ce9837dd5b518`; package 13,358,545 bytes,
-  SHA-256 `F98D37AC73F2CA06859EAF4E3286739BEC1AAEF092C7FE06712EE365E4B4A403`.
+  `.gamedata`. Final build id `d6e2079669ebca21`; package 13,340,776 bytes,
+  SHA-256 `1447D498DE585EF6F19E99EFEA14D374595A1B35D7BECAE111D996041A05EF43`.
   `emerald-game.nro` SHA-256
-  `7D329935D22ECC8736890F3DC3C087DF32CB825C9D0AD59B1793B4BF74362BB3`,
+  `CF349FFAC79916ED003B038B5324FE20012D58A2549BEFD8C4154782C4CFC4D5`,
   `emerald3ds.pak` SHA-256
   `40D1FA8CD0E33C0226F24E69B0DF7B74A035808EF59EE21D785D3A09E7B2EF7C`
   (6,425 entries, 55,899,776 bytes, ABI `898dbec9`), loader SHA-256
-  `29ED37F56F6EB0D2621B3E574C8FFC1BFAA30324CA9696085207EBFE8A6D9E2B`.
+  `88156AC4E9AE71DFE6890FB2EFCA31BCD5CCA4C9E12276344552E27A9505B15D`.
 - 3DS: rebuilt from a clean copy of the bootstrapped tree with devkitARM;
   `emerald3ds.elf` 31,901,540 bytes and `emerald3ds.3dsx` 62,087,788 bytes,
   rc=0.

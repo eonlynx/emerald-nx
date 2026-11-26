@@ -2084,6 +2084,17 @@ static void DrawScreen(int screen, GLuint tex, int pw, int ph, int rotate)
     if (screen == HOST_SCREEN_TOP && CtrSettings_ShowFps())
         DrawFps(w, h, (float)x, (float)y, (float)vh / (float)ph);
 #endif
+#ifdef __SWITCH__
+    /* Presentation probe: a red corner that bypasses the GBA texture. */
+    if (screen == HOST_SCREEN_TOP)
+    {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(0, 0, 64, 64);
+        glClearColor(1, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_SCISSOR_TEST);
+    }
+#endif
     if (!eglSwapBuffers(sDpy, sSurf[screen]))
     {
         static int sSwapErrors;

@@ -36,10 +36,6 @@ static u8 sSavedTls[0x100];
 
 static void log_line(const char *fmt, ...) {
     va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    printf("\n");
     if (g_log) {
         va_start(args, fmt);
         vfprintf(g_log, fmt, args);
@@ -47,15 +43,10 @@ static void log_line(const char *fmt, ...) {
         fputc('\n', g_log);
         fflush(g_log);
     }
-    consoleUpdate(NULL);
 }
 
 static void fail(const char *fmt, ...) {
     va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    printf("\n");
     if (g_log) {
         va_start(args, fmt);
         vfprintf(g_log, fmt, args);
@@ -63,7 +54,6 @@ static void fail(const char *fmt, ...) {
         fputc('\n', g_log);
         fflush(g_log);
     }
-    consoleUpdate(NULL);
     svcSleepThread(5'000'000'000ULL);
     svcExitProcess();
 }
@@ -192,10 +182,8 @@ static void *load_nro_file(const char *path, size_t *out_total, NroHeader *out_h
 }
 
 void switch_after_game(void) {
-    consoleInit(NULL);
     log_line("loader: game returned; ending the process to keep hbloader safe");
     fflush(g_log);
-    consoleUpdate(NULL);
     svcExitProcess();
 }
 
@@ -274,7 +262,9 @@ int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
 
-    consoleInit(NULL);
+    /* No console here: libnx's console renderer uses nv and framebufferClose
+     * calls nvExit(), which leaves the game's EGL surface unable to present.
+     * Keep the loader's report in loader.log only. */
     memcpy(sSavedTls, (u8 *)armGetTls() + 0x100, sizeof(sSavedTls));
     fsdevMountSdmc();
     mkdir("sdmc:/switch", 0777);
@@ -284,7 +274,7 @@ int main(int argc, char **argv) {
         setvbuf(g_log, NULL, _IOLBF, 0);
     }
 
-    log_line("Emerald NX loader (direct CRT0 entry, 2026-11-25c)");
+    log_line("Emerald NX loader (direct CRT0 entry, no console, 2026-11-25d)");
     log_line("loader: applet type %d, own process handle 0x%x, main thread 0x%x",
              appletGetAppletType(), envGetOwnProcessHandle(), envGetMainThreadHandle());
 
@@ -369,7 +359,6 @@ int main(int argc, char **argv) {
      * handing control to the NRO, so the NRO's libnx sees a clean process:
      * __appInit opens SM, applet, HID, time and FS itself.  Leaving the
      * loader's sessions open made the NRO abort before main. */
-    consoleExit(NULL);
     fsdevUnmountAll();
     fsExit();
     appletExit();

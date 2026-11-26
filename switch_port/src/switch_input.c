@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "android_host.h"
+#include "3ds_log.h"
 
 static PadState sPad;
 static bool sReady;
@@ -28,6 +29,11 @@ void AndroidHost_GetInput(AndroidHostInput *out) {
     padUpdate(&sPad);
 
     const u64 held = padGetButtons(&sPad);
+    static u64 sLastHeld;
+    if (held != sLastHeld) {
+        CtrLog_Write(CTR_LOG_INPUT, "pad buttons 0x%016llx", (unsigned long long)held);
+        sLastHeld = held;
+    }
     out->buttons = 0;
     if (held & HidNpadButton_A) out->buttons |= HOST_BTN_A;
     if (held & HidNpadButton_B) out->buttons |= HOST_BTN_B;

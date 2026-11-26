@@ -28,7 +28,9 @@ in the same tree and keep building.
 - Loader: the game image's instruction cache is invalidated after its RX
   permissions exist, following smbr-nx and Dusklight, instead of while the
   freshly mapped pages are still inaccessible. The loader also logs each
-  mapping step and enters the NRO CRT0 at +0x80 directly. Before the jump it
+  mapping step to `loader.log` and enters the NRO CRT0 at +0x80 directly. It
+  no longer opens a libnx console: `consoleExit` calls `framebufferClose` and
+  `nvExit`, which left the game's EGL surface unable to present. Before the jump it
   now closes the services it opened (console, FS, applet, HID, time, setsys
   and SM) and restores its TLS, as nx-hbloader does, so the NRO's libnx can
   initialize its own services before `main`.
