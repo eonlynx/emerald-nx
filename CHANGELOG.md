@@ -31,6 +31,23 @@ in the same tree and keep building.
   bottom-screen panel. The analog stick's Y axis is converted from libnx's
   upward-positive value to the decoder's downward-positive screen
   coordinates, so pushing up moves the player up.
+- Options: GENERAL > SYSTEM gains SHOW SPEED (OFF/AUTO/ON) and HOLD SPEED
+  (OFF/1.5x/2x/3x/4x). BATTLE > SCENE's 3D BATTLE is now OFF/AUTO/ON, with
+  AUTO following VOXEL 3D, and a BATTLE MENU option picks the GBA menu
+  (CLASSIC) or the bottom screen's battle menu (NEW), which appears on the
+  player's turn.
+- Controls: ZL and ZR are both hold-to-boost at HOLD SPEED and return to 1x
+  on release; pressing both locks the MAX SPEED (or 1x again), with a sound
+  and a LOCKED/NORMAL notice under the FPS line. Y switches VOXEL 3D
+  anywhere (with its select sound), SELECT uses the registered item (and
+  throws the quick ball in a battle's action menu), and X opens the bottom
+  screen, including during conversations. In battle X shows the bottom battle
+  screen until X or B closes it.
+- Bottom screen: the D-pad now enters the OPTIONS rows without first pressing
+  A on the dock icon (DOWN selects the first, UP the last), the category and
+  group tabs are reachable with the arrows, and SAVE YES/NO, the region map's
+  cursor and zoom, the Trainer Card flip and the dock's registered item and
+  RUN columns respond to the buttons.
 - Performance: the voxel world is initialized only when its option is on,
   instead of building its 3,049 models and high-resolution surfaces for every
   player; the classic 2D software compositor is compiled with `-O3`. The GL

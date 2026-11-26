@@ -37,14 +37,24 @@ needed now.
 
 ## Controls
 
-- A/B/X/Y: the Game Boy Advance A/B/X/Y buttons, by their printed letters.
+- A/B/X: the Game Boy Advance A/B/X buttons, by their printed letters.
+- Y: switch VOXEL 3D on or off (3D/2D toggle), anywhere.
 - D-pad / left stick: movement.
 - L/R: the GBA L/R buttons.
-- ZL/ZR: fast-forward speed, or battle speed in battle (the same behavior as
-  the Android port).
-- Plus: Start. Minus: Select.
+- ZL/ZR: hold either for the MAX SPEED (4x by default); release returns to 1x.
+  Both together lock the MAX SPEED, or return to 1x.
+- Plus: Start. Minus: Select (the registered item; in a battle action menu,
+  the quick ball).
+- X: open the bottom-screen panel, also during conversations; in battle it
+  shows the bottom battle screen (again to close, or B from its main menu).
 - Touch screen (handheld): the bottom screen's window; it is also shown on the
   top screen as in the Android single-screen port.
+
+In GENERAL > SYSTEM, SHOW SPEED (OFF/AUTO/ON) puts the current speed under the
+FPS counter, and HOLD SPEED (OFF/1.5x/2x/3x/4x) chooses the MAX SPEED.
+BATTLE > SCENE has 3D BATTLE (OFF/AUTO/ON; AUTO follows VOXEL 3D) and
+BATTLE MENU (CLASSIC/NEW; NEW uses the bottom screen's battle menu on your
+turn).
 
 Fast-forward keeps the full 2D detail at every speed: the picture does not
 drop scanlines or change resolution.
